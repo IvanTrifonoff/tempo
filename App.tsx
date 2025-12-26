@@ -1,0 +1,684 @@
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { DanceStyle, Track, User, PlayerState, Playlist, TrainingSettings } from './types';
+import { STYLE_COLORS } from './constants';
+import { 
+  PlayIcon, PauseIcon, SkipForward, SkipBack, SettingsIcon, 
+  PlusIcon, UserIcon, HeartIcon, PlaylistIcon, 
+  MetronomeIcon, TrashIcon 
+} from './components/Icons';
+import AdminPanel from './components/AdminPanel';
+import AuthModal from './components/AuthModal';
+import AddToPlaylistModal from './components/AddToPlaylistModal';
+import ClapDetector from './components/ClapDetector';
+
+const App: React.FC = () => {
+  const { t, i18n } = useTranslation();
+  
+  // --- Состояние приложения ---
+  const [tracks, setTracks] = useState<Track[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [activeStyle, setActiveStyle] = useState<DanceStyle | 'All' | 'Favorites' | string>('All');
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  
+  const [showAdmin, setShowAdmin] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
+  const [showPlaylistCreator, setShowPlaylistCreator] = useState(false);
+  const [showTrainingPanel, setShowTrainingPanel] = useState(false);
+  const [editingBpmId, setEditingBpmId] = useState<string | null>(null);
+  const [isPlayerVisible, setIsPlayerVisible] = useState(true);
+  const [playlistModalTrackId, setPlaylistModalTrackId] = useState<string | null>(null);
+  
+  const [training, setTraining] = useState<TrainingSettings>({
+    isActive: false,
+    trackDurationLimit: 90,
+    pauseDuration: 15,
+    metronomeEnabled: false,
+    metronomeVolume: 0.9,
+    clapDetectionEnabled: false,
+    clapSensitivity: 60
+  });
+
+  const [player, setPlayer] = useState<PlayerState>({
+    currentTrack: null,
+    isPlaying: false,
+    playbackRate: 1.0,
+    currentTime: 0,
+    duration: 0,
+    volume: 0.8,
+    isPauseCountdown: false,
+    countdownValue: 0
+  });
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const metronomeIntervalRef = useRef<number | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const [isMetronomeVisualActive, setIsMetronomeVisualActive] = useState(false);
+
+  // --- Check Auth on Load ---
+  useEffect(() => {
+    if (token) {
+        fetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${token}` } })
+            .then(res => {
+                if (res.ok) return res.json();
+                throw new Error('Invalid token');
+            })
+            .then(u => setUser(u))
+            .catch(() => {
+                localStorage.removeItem('token');
+                setToken(null);
+                setUser(null);
+            });
+    }
+  }, [token]);
+
+  const handleLogin = (newUser: User, newToken: string) => {
+      localStorage.setItem('token', newToken);
+      setToken(newToken);
+      setUser(newUser);
+      setShowAuth(false);
+  };
+
+  const handleLogout = () => {
+      localStorage.removeItem('token');
+      setToken(null);
+      setUser(null);
+  };
+
+  // --- Data Loading ---
+  useEffect(() => {
+    fetch('/api/tracks')
+      .then(res => res.json())
+      .then(data => setTracks(data))
+      .catch(console.error);
+  }, []);
+
+  useEffect(() => {
+    if (token) {
+      fetch('/api/playlists', { headers: { 'Authorization': `Bearer ${token}` } })
+        .then(res => res.json())
+        .then(data => Array.isArray(data) ? setPlaylists(data) : setPlaylists([]))
+        .catch(console.error);
+    } else {
+      setPlaylists([]);
+    }
+  }, [token]);
+
+  const handleAddTrack = async (formData: FormData) => {
+    if (!token) return;
+    const res = await fetch('/api/tracks', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData
+    });
+    if (!res.ok) throw new Error('Upload failed');
+    const newTrack = await res.json();
+    setTracks(prev => [newTrack, ...prev]);
+  };
+
+  // --- Audio Context ---
+  const initAudioCtx = useCallback(async () => {
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    if (audioCtxRef.current.state === 'suspended') {
+      await audioCtxRef.current.resume();
+    }
+    return audioCtxRef.current;
+  }, []);
+
+  useEffect(() => {
+    const handleGlobalClick = () => { initAudioCtx(); };
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
+  }, [initAudioCtx]);
+
+  const filteredTracks = useMemo(() => {
+    if (activeStyle === 'All') return tracks;
+    if (activeStyle === 'Favorites') return tracks.filter(t => user?.favorites.includes(t.id));
+    const playlist = playlists.find(p => p.id === activeStyle);
+    if (playlist) return tracks.filter(t => playlist.trackIds.includes(t.id));
+    return tracks.filter(t => t.style === activeStyle);
+  }, [activeStyle, tracks, user?.favorites, playlists]);
+
+  // --- Metronome ---
+  const playMetronomeTick = useCallback(async () => {
+    const ctx = await initAudioCtx();
+    if (!ctx || ctx.state !== 'running') return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    const now = ctx.currentTime;
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(1200, now);
+    osc.frequency.exponentialRampToValueAtTime(40, now + 0.05);
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(training.metronomeVolume, now + 0.002);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+    osc.start(now);
+    osc.stop(now + 0.08);
+    setIsMetronomeVisualActive(true);
+    setTimeout(() => setIsMetronomeVisualActive(false), 50);
+  }, [initAudioCtx, training.metronomeVolume]);
+
+  useEffect(() => {
+    if (training.metronomeEnabled && player.isPlaying && player.currentTrack) {
+      const intervalMs = (60 / (player.currentTrack.bpm * player.playbackRate)) * 1000;
+      if (metronomeIntervalRef.current) window.clearInterval(metronomeIntervalRef.current);
+      metronomeIntervalRef.current = window.setInterval(playMetronomeTick, intervalMs);
+      playMetronomeTick();
+    } else {
+      if (metronomeIntervalRef.current) {
+        window.clearInterval(metronomeIntervalRef.current);
+        metronomeIntervalRef.current = null;
+      }
+    }
+    return () => { if (metronomeIntervalRef.current) window.clearInterval(metronomeIntervalRef.current); };
+  }, [training.metronomeEnabled, player.isPlaying, player.currentTrack, player.playbackRate, playMetronomeTick]);
+
+  const togglePlay = useCallback(async () => {
+    await initAudioCtx();
+    setPlayer(p => ({ ...p, isPlaying: !p.isPlaying, isPauseCountdown: false }));
+  }, [initAudioCtx]);
+
+  const selectTrack = useCallback(async (track: Track) => {
+    await initAudioCtx();
+    setPlayer(prev => ({ 
+      ...prev, 
+      currentTrack: track, 
+      isPlaying: true,
+      playbackRate: 1.0,
+      isPauseCountdown: false 
+    }));
+    setIsPlayerVisible(true);
+  }, [initAudioCtx]);
+
+  const skip = useCallback((direction: 'next' | 'prev') => {
+    if (filteredTracks.length === 0) return;
+    const currentIndex = filteredTracks.findIndex(t => t.id === player.currentTrack?.id);
+    let nextIndex = direction === 'next' 
+      ? (currentIndex + 1) % filteredTracks.length 
+      : (currentIndex - 1 + filteredTracks.length) % filteredTracks.length;
+    selectTrack(filteredTracks[nextIndex]);
+  }, [player.currentTrack, filteredTracks, selectTrack]);
+
+  useEffect(() => {
+    if (!audioRef.current || !player.currentTrack) return;
+    audioRef.current.volume = player.volume;
+    audioRef.current.playbackRate = player.playbackRate;
+    if (player.isPlaying) {
+      audioRef.current.play().catch(() => setPlayer(p => ({ ...p, isPlaying: false })));
+    } else {
+      audioRef.current.pause();
+    }
+  }, [player.isPlaying, player.currentTrack?.id, player.playbackRate, player.volume]);
+
+  useEffect(() => {
+    if (training.isActive && player.isPlaying && training.trackDurationLimit > 0) {
+      if (player.currentTime >= training.trackDurationLimit) {
+        setPlayer(p => ({ ...p, isPlaying: false, isPauseCountdown: true, countdownValue: training.pauseDuration }));
+      }
+    }
+  }, [player.currentTime, training.isActive, training.trackDurationLimit, player.isPlaying]);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    if (player.isPauseCountdown && player.countdownValue > 0) {
+      timer = setTimeout(() => {
+        setPlayer(p => ({ ...p, countdownValue: p.countdownValue - 1 }));
+      }, 1000);
+    } else if (player.isPauseCountdown && player.countdownValue === 0) {
+      skip('next');
+    }
+    return () => { if (timer) clearTimeout(timer); };
+  }, [player.isPauseCountdown, player.countdownValue, skip]);
+
+  const toggleTrackInPlaylist = async (playlistId: string, isAdding: boolean) => {
+    if (!token || !playlistModalTrackId) return;
+    
+    setPlaylists(prev => prev.map(p => {
+        if (p.id !== playlistId) return p;
+        return {
+            ...p,
+            trackIds: isAdding 
+                ? [...p.trackIds, playlistModalTrackId] 
+                : p.trackIds.filter(id => id !== playlistModalTrackId)
+        };
+    }));
+
+    try {
+        const method = isAdding ? 'POST' : 'DELETE';
+        const url = isAdding 
+            ? `/api/playlists/${playlistId}/tracks`
+            : `/api/playlists/${playlistId}/tracks/${playlistModalTrackId}`;
+            
+        const body = isAdding ? JSON.stringify({ trackId: playlistModalTrackId }) : undefined;
+
+        await fetch(url, {
+            method,
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}` 
+            },
+            body
+        });
+    } catch (e) {
+        console.error(e);
+    }
+  };
+
+  const toggleFavorite = (trackId: string) => {
+    if (!user || !token) { setShowAuth(true); return; }
+    
+    setUser(prev => {
+      if (!prev) return null;
+      const isFav = prev.favorites.includes(trackId);
+      return { ...prev, favorites: isFav ? prev.favorites.filter(id => id !== trackId) : [...prev.favorites, trackId] };
+    });
+
+    fetch('/api/user/favorites', {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ trackId })
+    }).catch(console.error);
+  };
+
+  const updateTrackBpm = (trackId: string, newBpm: number) => {
+    if (!token) return;
+    const updatedTracks = tracks.map(t => t.id === trackId ? { ...t, bpm: newBpm } : t);
+    setTracks(updatedTracks);
+    if (player.currentTrack?.id === trackId) {
+      setPlayer(p => ({ ...p, currentTrack: { ...p.currentTrack!, bpm: newBpm } }));
+    }
+    setEditingBpmId(null);
+    
+    fetch(`/api/tracks/${trackId}/bpm`, {
+      method: 'PATCH',
+      headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ bpm: newBpm })
+    }).catch(console.error);
+  };
+
+  const deleteTrack = (trackId: string) => {
+    if (!token) return;
+    if (confirm(t('confirm.deleteTrack'))) {
+      setTracks(prev => prev.filter(t => t.id !== trackId));
+      if (player.currentTrack?.id === trackId) {
+        setPlayer(p => ({ ...p, currentTrack: null, isPlaying: false }));
+      }
+      fetch(`/api/tracks/${trackId}`, { 
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+      }).catch(console.error);
+    }
+  };
+
+  const currentEffectiveBpm = useMemo(() => {
+    if (!player.currentTrack) return 0;
+    return Math.round(player.currentTrack.bpm * player.playbackRate * 10) / 10;
+  }, [player.currentTrack, player.playbackRate]);
+
+  const adjustBpmInPlayer = (delta: number) => {
+    if (!player.currentTrack) return;
+    const targetBpm = currentEffectiveBpm + delta;
+    const newRate = targetBpm / player.currentTrack.bpm;
+    setPlayer(p => ({ ...p, playbackRate: Math.max(0.5, Math.min(1.5, newRate)) }));
+  };
+
+  const changeLanguage = (lng: string) => {
+    i18n.changeLanguage(lng);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0a] pb-40">
+      <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/10 px-6 py-4 flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-serif font-bold tracking-tight text-white hidden sm:block">{t('app.title')}</h1>
+        </div>
+
+        <div className="flex items-center gap-2 md:gap-4">
+          <div className="flex gap-1 bg-white/5 rounded-full p-1 border border-white/10">
+             {['en', 'es', 'ru'].map(lang => (
+                 <button 
+                    key={lang} 
+                    onClick={() => changeLanguage(lang)}
+                    className={`px-2 py-1 rounded-full text-xs font-bold uppercase transition ${i18n.language.startsWith(lang) ? 'bg-white/20 text-white' : 'text-gray-500 hover:text-gray-300'}`}
+                 >
+                     {lang}
+                 </button>
+             ))}
+          </div>
+
+          <button 
+            onClick={() => setTraining(t => ({...t, metronomeEnabled: !t.metronomeEnabled}))}
+            className={`p-2 md:px-4 md:py-2 rounded-full border transition-all duration-300 flex items-center gap-2 ${training.metronomeEnabled ? 'bg-yellow-500 text-black border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.4)]' : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'}`}
+          >
+            <MetronomeIcon />
+            <span className="hidden md:inline font-bold text-sm">{t('app.metronome')}</span>
+          </button>
+
+          <button 
+            onClick={() => setShowTrainingPanel(true)}
+            className={`flex items-center gap-2 px-3 py-2 md:px-5 md:py-2 rounded-full border transition-all duration-300 ${training.isActive ? 'bg-yellow-500 text-black border-yellow-500 shadow-lg' : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'}`}
+          >
+            <SettingsIcon />
+            <span className="hidden md:inline font-bold text-sm">{t('app.coachMode')}</span>
+          </button>
+          
+          {user?.isAdmin && (
+            <button onClick={() => setShowAdmin(true)} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-full border border-white/10 transition">
+              <PlusIcon /> <span className="hidden md:inline">{t('app.upload')}</span>
+            </button>
+          )}
+          
+          <button onClick={() => user ? handleLogout() : setShowAuth(true)} className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-400 text-black px-4 py-2 md:px-5 md:py-2 rounded-full font-bold transition shadow-md text-sm">
+            <UserIcon /> <span className="hidden xs:inline">{user ? t('app.logout') : t('app.login')}</span>
+          </button>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-6 pt-8">
+        <div className="mb-10 flex flex-wrap gap-2 items-center">
+          <button onClick={() => setActiveStyle('All')} className={`px-5 py-2 rounded-full transition ${activeStyle === 'All' ? 'bg-yellow-500 text-black' : 'bg-white/5 text-gray-400 border border-white/10'}`}>{t('app.all')}</button>
+          <button onClick={() => setActiveStyle('Favorites')} className={`flex items-center gap-2 px-5 py-2 rounded-full transition ${activeStyle === 'Favorites' ? 'bg-rose-500 text-white' : 'bg-white/5 text-gray-400 border border-white/10'}`}><HeartIcon filled={activeStyle === 'Favorites'} /> {t('app.favorites')}</button>
+          <div className="h-6 w-[1px] bg-white/10 mx-2" />
+          {Object.values(DanceStyle).map(style => (
+            <button key={style} onClick={() => setActiveStyle(style)} className={`px-5 py-2 rounded-full transition ${activeStyle === style ? 'bg-yellow-500 text-black shadow-md' : 'bg-white/5 text-gray-400 border border-white/10'}`}>{t(`styles.${style}`)}</button>
+          ))}
+          <div className="h-6 w-[1px] bg-white/10 mx-2" />
+          {playlists.map(pl => (
+            <div key={pl.id} className="relative group">
+              <button onClick={() => setActiveStyle(pl.id)} className={`flex items-center gap-2 px-5 py-2 rounded-full transition ${activeStyle === pl.id ? 'bg-indigo-500 text-white shadow-md' : 'bg-white/5 text-gray-400 border border-white/10'}`}><PlaylistIcon /> {pl.name}</button>
+              <button onClick={(e) => { e.stopPropagation(); setPlaylists(prev => prev.filter(p => p.id !== pl.id)); if (activeStyle === pl.id) setActiveStyle('All'); }} className="absolute -top-1 -right-1 bg-red-500 text-white p-1 rounded-full opacity-0 group-hover:opacity-100 transition shadow-lg"><TrashIcon /></button>
+            </div>
+          ))}
+          <button onClick={() => user ? setShowPlaylistCreator(true) : setShowAuth(true)} className="flex items-center gap-2 px-5 py-2 rounded-full bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 transition border-dashed"><PlusIcon /> {t('app.playlist')}</button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredTracks.map(track => {
+            const isThisCurrent = player.currentTrack?.id === track.id;
+            return (
+              <div 
+                key={track.id} 
+                onClick={() => isThisCurrent ? togglePlay() : selectTrack(track)} 
+                className={`group relative overflow-hidden bg-[#141414] border border-white/10 rounded-2xl p-6 hover:border-yellow-500/50 transition-all duration-300 cursor-pointer ${isThisCurrent ? 'border-yellow-500 ring-1 ring-yellow-500 shadow-[0_0_25px_rgba(234,179,8,0.15)] bg-yellow-500/5' : ''}`}
+              >
+                <div className="flex justify-between items-start mb-4">
+                  <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded shadow-sm ${STYLE_COLORS[track.style]}`}>{t(`styles.${track.style}`)}</span>
+                  <div className="flex items-center gap-2">
+                     {user?.isAdmin && (
+                       <button 
+                        onClick={(e) => { e.stopPropagation(); deleteTrack(track.id); }} 
+                        className="text-gray-400 hover:text-red-500 transition-all p-1"
+                       >
+                         <TrashIcon />
+                       </button>
+                     )}
+                     <button onClick={(e) => { e.stopPropagation(); if(user) setPlaylistModalTrackId(track.id); else setShowAuth(true); }} className="text-gray-600 hover:text-indigo-400 transition-transform hover:scale-110 p-1"><PlusIcon /></button>
+                     <button onClick={(e) => { e.stopPropagation(); toggleFavorite(track.id); }} className={`transition-transform hover:scale-110 p-1 ${user?.favorites.includes(track.id) ? 'text-rose-500' : 'text-gray-600 hover:text-rose-400'}`}><HeartIcon filled={user?.favorites.includes(track.id)} /></button>
+                    <div className="flex items-center gap-1 bg-black/30 px-2 py-0.5 rounded-md" onClick={e => e.stopPropagation()}>
+                      {editingBpmId === track.id ? (
+                        <input 
+                          type="number" 
+                          autoFocus
+                          defaultValue={track.bpm}
+                          className="w-12 bg-transparent text-yellow-500 text-sm font-mono outline-none border-b border-yellow-500"
+                          onBlur={e => updateTrackBpm(track.id, Number(e.target.value))}
+                          onKeyDown={e => e.key === 'Enter' && updateTrackBpm(track.id, Number((e.target as HTMLInputElement).value))}
+                        />
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <span className="text-gray-300 text-sm font-mono">{track.bpm} BPM</span>
+                          {user?.isAdmin && (
+                            <button onClick={() => setEditingBpmId(track.id)} className="text-gray-600 hover:text-yellow-500 transition">
+                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <h3 className="text-xl font-bold text-white mb-1 group-hover:text-yellow-500 transition">{track.title}</h3>
+                <p className="text-gray-400 text-sm mb-5">{track.artist}</p>
+                <div className="flex items-center justify-between">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${isThisCurrent && player.isPlaying ? 'bg-yellow-500 text-black scale-110 shadow-lg' : 'bg-white/10 text-white hover:bg-white/20'}`}>
+                    {isThisCurrent && player.isPlaying ? <PauseIcon /> : <PlayIcon />}
+                  </div>
+                  {isThisCurrent && training.metronomeEnabled && (
+                    <div className={`w-3 h-3 rounded-full transition-all duration-75 ${isMetronomeVisualActive ? 'bg-yellow-500 scale-150 shadow-[0_0_10px_#eab308]' : 'bg-yellow-500/20'}`}></div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </main>
+
+      {/* Floating Player */}
+      {player.currentTrack && isPlayerVisible && (
+        <div className="fixed bottom-0 inset-x-0 z-50 bg-black/90 backdrop-blur-2xl border-t border-white/10 px-6 py-4 lg:py-6 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] animate-in slide-in-from-bottom duration-300">
+          <div className="max-w-7xl mx-auto relative">
+            <button 
+              onClick={() => setIsPlayerVisible(false)}
+              className="absolute -top-12 right-0 bg-black/80 text-gray-400 hover:text-white p-2 rounded-t-xl border-t border-x border-white/10 flex items-center gap-2 text-xs font-bold transition-all"
+            >
+              {t('player.hide')} <span>▼</span>
+            </button>
+
+            <div className="flex flex-col gap-4">
+              {player.isPauseCountdown && (
+                <div className="flex items-center justify-center gap-4 py-3 bg-yellow-500/20 border border-yellow-500/40 rounded-2xl animate-pulse shadow-lg">
+                  <div className="text-yellow-500 font-black text-3xl font-mono">{player.countdownValue}</div>
+                  <div className="flex flex-col leading-none text-left">
+                    <span className="text-yellow-500 font-bold uppercase tracking-widest text-xs">{t('player.pauseCoach')}</span>
+                    <span className="text-white/60 text-[10px] font-medium">{t('player.nextDance')}</span>
+                  </div>
+                </div>
+              )}
+              
+              <div className="grid grid-cols-1 lg:grid-cols-3 items-center gap-6">
+                <div className="flex items-center gap-4">
+                  <div className={`w-14 h-14 rounded-xl flex-shrink-0 flex items-center justify-center ${STYLE_COLORS[player.currentTrack.style]} text-white shadow-2xl relative overflow-hidden`}>
+                     <div className="absolute inset-0 bg-black/20"></div>
+                     <MetronomeIcon />
+                  </div>
+                  <div className="min-w-0 text-left">
+                    <h4 className="text-white font-bold truncate text-lg leading-tight">{player.currentTrack.title}</h4>
+                    <p className="text-gray-400 text-sm truncate">{player.currentTrack.artist} • {t(`styles.${player.currentTrack.style}`)}</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-center gap-3">
+                  <div className="flex items-center gap-8">
+                    <button onClick={() => skip('prev')} className="text-gray-500 hover:text-white transition-all hover:scale-110"><SkipBack /></button>
+                    <button onClick={togglePlay} className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-black hover:scale-110 active:scale-95 transition-all shadow-xl">
+                      {player.isPlaying ? <PauseIcon /> : <PlayIcon />}
+                    </button>
+                    <button onClick={() => skip('next')} className="text-gray-500 hover:text-white transition-all hover:scale-110"><SkipForward /></button>
+                  </div>
+                  
+                  <div className="w-full flex items-center gap-3 text-[11px] font-mono text-gray-500 font-bold">
+                    <span>{Math.floor(player.currentTime / 60)}:{(Math.floor(player.currentTime % 60)).toString().padStart(2, '0')}</span>
+                    <div className="relative flex-1 h-2 rounded-full bg-white/5 overflow-hidden group">
+                      <div className="absolute top-0 left-0 h-full bg-gradient-to-r from-yellow-600 to-yellow-400 transition-all duration-100 shadow-[0_0_10px_rgba(234,179,8,0.3)]" style={{ width: `${(player.currentTime / (player.duration || 1)) * 100}%` }} />
+                      <input type="range" min="0" max={player.duration || 0} value={player.currentTime} onChange={e => { if (audioRef.current) audioRef.current.currentTime = Number(e.target.value); }} className="absolute top-0 left-0 w-full h-full opacity-0 cursor-pointer z-10" />
+                    </div>
+                    <span>{Math.floor(player.duration / 60)}:{(Math.floor(player.duration % 60)).toString().padStart(2, '0')}</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-6">
+                  <div className="flex flex-col items-center bg-white/5 rounded-xl p-2 border border-white/10 shadow-inner">
+                    <div className="flex items-center justify-between w-full mb-1">
+                      <span className="text-[10px] text-gray-500 font-black uppercase tracking-widest">{t('player.bpm')}</span>
+                      <button 
+                        onClick={() => setTraining(t => ({...t, metronomeEnabled: !t.metronomeEnabled}))}
+                        className={`transition-colors ${training.metronomeEnabled ? 'text-yellow-500' : 'text-gray-600'}`}
+                      >
+                        <MetronomeIcon />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => adjustBpmInPlayer(-1)} className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold transition flex items-center justify-center shadow-md">-</button>
+                      <div className="flex flex-col items-center min-w-[50px]">
+                        <span className="text-yellow-500 font-black text-xl leading-none">{currentEffectiveBpm}</span>
+                        <span className="text-[8px] text-gray-500 font-bold">{t('player.base')}: {player.currentTrack.bpm}</span>
+                      </div>
+                      <button onClick={() => adjustBpmInPlayer(1)} className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold transition flex items-center justify-center shadow-md">+</button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1 w-28">
+                    <div className="flex justify-between text-[10px] text-gray-400 font-black uppercase tracking-tighter">
+                      <span>{t('player.speed')}</span>
+                      <span className="text-yellow-500">{(player.playbackRate * 100).toFixed(0)}%</span>
+                    </div>
+                    <input type="range" min="0.5" max="1.5" step="0.01" value={player.playbackRate} onChange={e => setPlayer(p => ({ ...p, playbackRate: Number(e.target.value) }))} className="w-full h-1.5 bg-white/10 rounded-full appearance-none accent-yellow-500 cursor-pointer" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mini Restore Button */}
+      {player.currentTrack && !isPlayerVisible && (
+        <button 
+          onClick={() => setIsPlayerVisible(true)}
+          className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-yellow-500 text-black rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all animate-bounce"
+        >
+          <PlayIcon />
+        </button>
+      )}
+
+      <audio 
+        ref={audioRef}
+        src={player.currentTrack?.url}
+        onTimeUpdate={() => { if (audioRef.current) setPlayer(p => ({ ...p, currentTime: audioRef.current?.currentTime || 0, duration: audioRef.current?.duration || 0 })); }}
+        onEnded={() => skip('next')}
+      />
+
+      {/* TRAINING MODAL */}
+      {showTrainingPanel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-2xl p-4 transition-all">
+          <div className="bg-[#1a1a1a] border border-white/10 p-10 rounded-[2.5rem] w-full max-w-lg shadow-2xl relative overflow-hidden">
+            <div className="flex justify-between items-start mb-10">
+              <div>
+                <h2 className="text-4xl font-serif text-white font-bold mb-1">{t('coach.title')}</h2>
+                <p className="text-gray-500 text-sm font-medium">{t('coach.subtitle')}</p>
+              </div>
+              <button onClick={() => setShowTrainingPanel(false)} className="text-gray-400 hover:text-white text-3xl font-light">&times;</button>
+            </div>
+            <div className="space-y-6">
+              {/* Autopilot Card */}
+              <div className="p-6 bg-white/5 rounded-3xl border border-white/10 space-y-6">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h4 className="text-white font-bold text-lg">{t('coach.autopilot')}</h4>
+                    <p className="text-xs text-gray-500">{t('coach.autopilotDesc')}</p>
+                  </div>
+                  <button onClick={() => setTraining(t => ({ ...t, isActive: !t.isActive }))} className={`w-16 h-9 rounded-full transition-all p-1 flex items-center flex-shrink-0 ${training.isActive ? 'bg-yellow-500' : 'bg-white/10'}`}>
+                    <div className={`w-7 h-7 rounded-full bg-black transition-all transform ${training.isActive ? 'translate-x-7' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+                
+                {training.isActive && (
+                  <div className="space-y-6 pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div>
+                      <div className="flex justify-between text-sm text-gray-300 mb-2"><span>{t('coach.danceDuration')}</span><span className="text-yellow-500">{training.trackDurationLimit}s</span></div>
+                      <input type="range" min="30" max="300" step="15" value={training.trackDurationLimit} onChange={e => setTraining(t => ({ ...t, trackDurationLimit: Number(e.target.value) }))} className="w-full accent-yellow-500" />
+                    </div>
+                    <div>
+                      <div className="flex justify-between text-sm text-gray-300 mb-2"><span>{t('coach.feedbackPause')}</span><span className="text-yellow-500">{training.pauseDuration}s</span></div>
+                      <input type="range" min="5" max="60" step="5" value={training.pauseDuration} onChange={e => setTraining(t => ({ ...t, pauseDuration: Number(e.target.value) }))} className="w-full accent-yellow-500" />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Clap Detection Card */}
+              <div className="p-6 bg-white/5 rounded-3xl border border-white/10 space-y-6">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h4 className="text-white font-bold text-lg">{t('coach.clapDetection')}</h4>
+                    <p className="text-xs text-gray-500">{t('coach.clapDesc')}</p>
+                  </div>
+                  <button onClick={() => setTraining(t => ({ ...t, clapDetectionEnabled: !t.clapDetectionEnabled }))} className={`w-16 h-9 rounded-full transition-all p-1 flex items-center flex-shrink-0 ${training.clapDetectionEnabled ? 'bg-yellow-500' : 'bg-white/10'}`}>
+                    <div className={`w-7 h-7 rounded-full bg-black transition-all transform ${training.clapDetectionEnabled ? 'translate-x-7' : 'translate-x-0'}`} />
+                  </button>
+                </div>
+                {training.clapDetectionEnabled && (
+                  <div className="pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                      <div className="flex justify-between text-sm text-gray-300 mb-2"><span>{t('coach.sensitivity')}</span><span className="text-yellow-500">{training.clapSensitivity}%</span></div>
+                      <input type="range" min="10" max="100" step="5" value={training.clapSensitivity} onChange={e => setTraining(t => ({ ...t, clapSensitivity: Number(e.target.value) }))} className="w-full accent-yellow-500" />
+                  </div>
+                )}
+              </div>
+            </div>
+            <button onClick={() => setShowTrainingPanel(false)} className="w-full mt-12 py-5 bg-yellow-500 text-black font-black uppercase rounded-[1.5rem] hover:bg-yellow-400 transition-all">
+              {t('coach.close')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showPlaylistCreator && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
+          <div className="bg-[#1a1a1a] border border-white/10 p-8 rounded-3xl w-full max-w-sm shadow-2xl">
+            <h2 className="text-2xl font-serif text-white mb-6">{t('app.newPlaylist')}</h2>
+            <form onSubmit={(e) => { 
+                e.preventDefault(); 
+                const name = (e.target as any).playlistName.value; 
+                if (name && token) { 
+                    fetch('/api/playlists', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                        body: JSON.stringify({ name })
+                    })
+                    .then(res => res.json())
+                    .then(newPl => setPlaylists(prev => [...prev, newPl]))
+                    .catch(console.error);
+                    setShowPlaylistCreator(false); 
+                } 
+            }}>
+              <input name="playlistName" type="text" autoFocus required className="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-3 text-white mb-6 outline-none" placeholder={t('app.playlistName')} />
+              <div className="flex gap-4">
+                <button type="button" onClick={() => setShowPlaylistCreator(false)} className="flex-1 py-3 text-gray-400">{t('app.cancel')}</button>
+                <button type="submit" className="flex-1 py-3 bg-indigo-500 text-white font-bold rounded-xl">{t('app.create')}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showAdmin && <AdminPanel onAddTrack={handleAddTrack} onClose={() => setShowAdmin(false)} />}
+      {showAuth && <AuthModal onLogin={handleLogin} onClose={() => setShowAuth(false)} />}
+      {playlistModalTrackId && (
+        <AddToPlaylistModal 
+            playlists={playlists} 
+            trackId={playlistModalTrackId} 
+            onClose={() => setPlaylistModalTrackId(null)} 
+            onToggle={toggleTrackInPlaylist}
+        />
+      )}
+      <ClapDetector 
+        isEnabled={training.clapDetectionEnabled} 
+        sensitivity={training.clapSensitivity} 
+        onClap={togglePlay} 
+      />
+    </div>
+  );
+};
+
+export default App;
