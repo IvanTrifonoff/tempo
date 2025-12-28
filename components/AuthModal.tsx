@@ -12,15 +12,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin, onClose }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const emailRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    // Небольшая задержка перед фокусом для корректной отработки анимации iOS
-    const timer = setTimeout(() => {
-      emailRef.current?.focus();
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [isLogin]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,11 +36,10 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin, onClose }) => {
   return (
     <div 
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/95" 
-      style={{ touchAction: 'none' }} // Предотвращаем прокрутку фона
     >
       <div 
         className="bg-[#1a1a1a] border border-white/10 p-6 rounded-[2rem] w-[90%] max-w-sm shadow-2xl text-center"
-        style={{ touchAction: 'auto' }} // Разрешаем тачи внутри формы
+        onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-2xl font-serif text-white mb-2">{isLogin ? t('auth.welcomeBack') : t('auth.createAccount')}</h2>
         <p className="text-gray-400 mb-6 text-xs">{isLogin ? t('auth.signInDesc') : t('auth.joinDesc')}</p>
@@ -58,7 +48,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin, onClose }) => {
           <div>
             <label className="block text-[10px] uppercase font-bold text-gray-500 mb-1 ml-1" htmlFor="email">{t('auth.email')}</label>
             <input 
-              ref={emailRef}
               type="email" 
               name="email"
               id="email"
@@ -68,7 +57,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin, onClose }) => {
               value={email}
               onChange={e => setEmail(e.target.value)}
               // Шрифт 16px критичен для iOS!
-              className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-[16px] text-white outline-none focus:border-yellow-500 transition"
+              className="w-full bg-black border border-white/10 rounded-xl px-4 py-3 text-[16px] text-white outline-none focus:border-yellow-500 transition select-text"
               placeholder="email@example.com"
             />
           </div>
