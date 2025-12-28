@@ -860,6 +860,8 @@ const App: React.FC = () => {
         </div>
       )}
 
+      <div className={`fixed inset-0 bg-white z-40 pointer-events-none transition-opacity duration-200 ease-out ${showFlash ? 'opacity-20' : 'opacity-0'}`} />
+      
       {showAdmin && <AdminPanel onAddTrack={handleAddTrack} onClose={() => setShowAdmin(false)} />}
       {showAuth && <AuthModal onLogin={handleLogin} onClose={() => setShowAuth(false)} />}
       {playlistModalTrackId && (
@@ -870,9 +872,7 @@ const App: React.FC = () => {
             onToggle={toggleTrackInPlaylist}
         />
       )}
-      
-      <div className={`fixed inset-0 bg-white z-[100] pointer-events-none transition-opacity duration-200 ease-out ${showFlash ? 'opacity-20' : 'opacity-0'}`} />
-      
+
       <ClapDetector 
         isEnabled={training.clapDetectionEnabled} 
         sensitivity={training.clapSensitivity} 
