@@ -83,6 +83,12 @@ const resources = {
         "Foxtrot": "Foxtrot",
         "Jive": "Jive",
         "Kids": "Kids"
+      },
+      pwa: {
+        offlineReady: "App ready to work offline",
+        updateAvailable: "New version available!",
+        reload: "Update",
+        close: "Close"
       }
     }
   },
@@ -166,6 +172,12 @@ const resources = {
         "Foxtrot": "Фокстрот",
         "Jive": "Джайв",
         "Kids": "Для детей"
+      },
+      pwa: {
+        offlineReady: "Приложение готово к работе оффлайн",
+        updateAvailable: "Доступна новая версия!",
+        reload: "Обновить",
+        close: "Закрыть"
       }
     }
   },
@@ -249,6 +261,12 @@ const resources = {
         "Foxtrot": "Foxtrot",
         "Jive": "Jive",
         "Kids": "Para niños"
+      },
+      pwa: {
+        offlineReady: "App lista para modo sin conexión",
+        updateAvailable: "¡Nueva versión disponible!",
+        reload: "Actualizar",
+        close: "Cerrar"
       }
     }
   }

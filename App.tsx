@@ -11,6 +11,7 @@ import AdminPanel from './components/AdminPanel';
 import AuthModal from './components/AuthModal';
 import AddToPlaylistModal from './components/AddToPlaylistModal';
 import ClapDetector from './components/ClapDetector';
+import ReloadPrompt from './components/ReloadPrompt';
 
 const App: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -29,6 +30,13 @@ const App: React.FC = () => {
   const [editingBpmId, setEditingBpmId] = useState<string | null>(null);
   const [isPlayerVisible, setIsPlayerVisible] = useState(true);
   const [playlistModalTrackId, setPlaylistModalTrackId] = useState<string | null>(null);
+  const [micLevel, setMicLevel] = useState(0);
+  const [showFlash, setShowFlash] = useState(false);
+  
+  const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([]);
+  const [audioOutputs, setAudioOutputs] = useState<MediaDeviceInfo[]>([]);
+  const [selectedInputId, setSelectedInputId] = useState<string>('');
+  const [selectedOutputId, setSelectedOutputId] = useState<string>('');
   
   const [training, setTraining] = useState<TrainingSettings>({
     isActive: false,
@@ -39,6 +47,30 @@ const App: React.FC = () => {
     clapDetectionEnabled: false,
     clapSensitivity: 60
   });
+
+  // --- Wake Lock ---
+  useEffect(() => {
+    let wakeLock: any = null;
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await (navigator as any).wakeLock.request('screen');
+        }
+      } catch (err) { console.error(err); }
+    };
+    
+    const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') requestWakeLock();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    requestWakeLock();
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (wakeLock) wakeLock.release();
+    };
+  }, []);
 
   const [player, setPlayer] = useState<PlayerState>({
     currentTrack: null,
@@ -56,6 +88,8 @@ const App: React.FC = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const metronomeIntervalRef = useRef<number | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const musicSourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const micStreamRef = useRef<MediaStream | null>(null);
   const [isMetronomeVisualActive, setIsMetronomeVisualActive] = useState(false);
 
   // --- Check Auth on Load ---
@@ -122,13 +156,63 @@ const App: React.FC = () => {
   // --- Audio Context ---
   const initAudioCtx = useCallback(async () => {
     if (!audioCtxRef.current) {
-      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
+        sampleRate: 44100,
+        latencyHint: 'interactive'
+      });
     }
+    
     if (audioCtxRef.current.state === 'suspended') {
       await audioCtxRef.current.resume();
     }
+
+    if (audioRef.current && !musicSourceNodeRef.current && audioCtxRef.current) {
+        try {
+            const source = audioCtxRef.current.createMediaElementSource(audioRef.current);
+            source.connect(audioCtxRef.current.destination);
+            musicSourceNodeRef.current = source;
+            console.log("Music routed through unified AudioContext");
+        } catch (e) {
+            console.warn("Music routing issue:", e);
+        }
+    }
+    
     return audioCtxRef.current;
   }, []);
+
+  useEffect(() => {
+    const manageMic = async () => {
+        if (training.clapDetectionEnabled) {
+            if (!micStreamRef.current) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        audio: { 
+                            echoCancellation: false, 
+                            noiseSuppression: false, 
+                            autoGainControl: false,
+                            sampleRate: 44100,
+                            deviceId: selectedInputId ? { exact: selectedInputId } : undefined
+                        } 
+                    });
+                    micStreamRef.current = stream;
+                    setMicLevel(0.00001);
+                } catch (err) {
+                    setTraining(t => ({ ...t, clapDetectionEnabled: false }));
+                }
+            }
+        } else {
+            if (micStreamRef.current) {
+                micStreamRef.current.getTracks().forEach(track => {
+                    track.stop();
+                    track.enabled = false;
+                });
+                micStreamRef.current = null;
+                setMicLevel(0);
+            }
+        }
+    };
+    manageMic();
+  }, [training.clapDetectionEnabled, selectedInputId]);
 
   useEffect(() => {
     const handleGlobalClick = () => { initAudioCtx(); };
@@ -362,6 +446,42 @@ const App: React.FC = () => {
     i18n.changeLanguage(lng);
   };
 
+  const loadDevices = useCallback(async () => {
+    try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        setAudioInputs(devices.filter(d => d.kind === 'audioinput'));
+        setAudioOutputs(devices.filter(d => d.kind === 'audiooutput'));
+    } catch (e) { console.error(e); }
+  }, []);
+
+  useEffect(() => {
+    if (showTrainingPanel) {
+      loadDevices();
+    }
+    navigator.mediaDevices.addEventListener('devicechange', loadDevices);
+    return () => navigator.mediaDevices.removeEventListener('devicechange', loadDevices);
+  }, [loadDevices, showTrainingPanel]);
+
+  useEffect(() => {
+      if (training.clapDetectionEnabled) {
+          // Wait for permission grant in ClapDetector
+          const timer = setTimeout(loadDevices, 2000);
+          return () => clearTimeout(timer);
+      }
+  }, [training.clapDetectionEnabled, loadDevices]);
+
+  useEffect(() => {
+    if (audioRef.current && selectedOutputId && (audioRef.current as any).setSinkId) {
+        (audioRef.current as any).setSinkId(selectedOutputId).catch(console.error);
+    }
+  }, [selectedOutputId]);
+
+  const handleClapAction = useCallback(() => {
+      togglePlay();
+      setShowFlash(true);
+      setTimeout(() => setShowFlash(false), 200);
+  }, [togglePlay]);
+
   return (
     <div className="min-h-screen bg-[#0a0a0a] pb-40">
       <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/10 px-6 py-4 flex justify-between items-center">
@@ -591,6 +711,7 @@ const App: React.FC = () => {
 
       <audio 
         ref={audioRef}
+        crossOrigin="anonymous"
         src={player.currentTrack?.url}
         onTimeUpdate={() => { if (audioRef.current) setPlayer(p => ({ ...p, currentTime: audioRef.current?.currentTime || 0, duration: audioRef.current?.duration || 0 })); }}
         onEnded={() => {
@@ -658,6 +779,44 @@ const App: React.FC = () => {
                   <div className="pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
                       <div className="flex justify-between text-sm text-gray-300 mb-2"><span>{t('coach.sensitivity')}</span><span className="text-yellow-500">{training.clapSensitivity}%</span></div>
                       <input type="range" min="10" max="100" step="5" value={training.clapSensitivity} onChange={e => setTraining(t => ({ ...t, clapSensitivity: Number(e.target.value) }))} className="w-full accent-yellow-500" />
+                      <div className="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden mt-3">
+                        <div className="h-full bg-green-500 transition-all duration-75" style={{ width: `${Math.min(100, micLevel * 100)}%` }} />
+                      </div>
+                      
+                      <div className="pt-4 space-y-4 border-t border-white/10 mt-4">
+                          <div className="relative">
+                              <label className="block text-[10px] uppercase font-bold text-gray-500 mb-1.5 ml-1">Microphone (Input)</label>
+                              <select 
+                                  value={selectedInputId} 
+                                  onChange={e => setSelectedInputId(e.target.value)}
+                                  className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-yellow-500 transition appearance-none"
+                              >
+                                  <option value="" className="bg-[#1a1a1a]">Auto / Default</option>
+                                  {audioInputs.map(d => <option key={d.deviceId} value={d.deviceId} className="bg-[#1a1a1a]">{d.label || `Device ${d.deviceId.slice(0,5)}...`}</option>)}
+                              </select>
+                              <div className="absolute right-4 bottom-3.5 pointer-events-none text-gray-500 text-[10px]">▼</div>
+                          </div>
+                          
+                          <div className="relative">
+                              <label className="block text-[10px] uppercase font-bold text-gray-500 mb-1.5 ml-1">Speakers (Output)</label>
+                              <select 
+                                  value={selectedOutputId} 
+                                  onChange={e => setSelectedOutputId(e.target.value)}
+                                  className={`w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-yellow-500 transition appearance-none ${audioOutputs.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                  disabled={audioOutputs.length === 0}
+                              >
+                                  {audioOutputs.length === 0 ? (
+                                      <option>System Default (Not supported)</option>
+                                  ) : (
+                                      <>
+                                        <option value="" className="bg-[#1a1a1a]">Default</option>
+                                        {audioOutputs.map(d => <option key={d.deviceId} value={d.deviceId} className="bg-[#1a1a1a]">{d.label || `Device ${d.deviceId.slice(0,5)}...`}</option>)}
+                                      </>
+                                  )}
+                              </select>
+                              <div className="absolute right-4 bottom-3.5 pointer-events-none text-gray-500 text-[10px]">▼</div>
+                          </div>
+                      </div>
                   </div>
                 )}
               </div>
@@ -665,6 +824,9 @@ const App: React.FC = () => {
             <button onClick={() => setShowTrainingPanel(false)} className="w-full mt-12 py-5 bg-yellow-500 text-black font-black uppercase rounded-[1.5rem] hover:bg-yellow-400 transition-all">
               {t('coach.close')}
             </button>
+            <div className="mt-8 text-[10px] text-gray-600 text-center uppercase tracking-widest font-bold">
+                v1.0.2 • tempo.TRFNV
+            </div>
           </div>
         </div>
       )}
@@ -708,10 +870,16 @@ const App: React.FC = () => {
             onToggle={toggleTrackInPlaylist}
         />
       )}
+      
+      <div className={`fixed inset-0 bg-white z-[100] pointer-events-none transition-opacity duration-200 ease-out ${showFlash ? 'opacity-20' : 'opacity-0'}`} />
+      
       <ClapDetector 
         isEnabled={training.clapDetectionEnabled} 
         sensitivity={training.clapSensitivity} 
-        onClap={togglePlay} 
+        onClap={handleClapAction} 
+        onLevelChange={setMicLevel}
+        audioContext={audioCtxRef.current}
+        stream={micStreamRef.current}
       />
     </div>
   );
