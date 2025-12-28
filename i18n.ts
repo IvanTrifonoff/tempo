@@ -81,7 +81,8 @@ const resources = {
         "Rumba": "Rumba",
         "Pasodoble": "Pasodoble",
         "Foxtrot": "Foxtrot",
-        "Jive": "Jive"
+        "Jive": "Jive",
+        "Kids": "Kids"
       }
     }
   },
@@ -163,7 +164,8 @@ const resources = {
         "Rumba": "Румба",
         "Pasodoble": "Пасодобль",
         "Foxtrot": "Фокстрот",
-        "Jive": "Джайв"
+        "Jive": "Джайв",
+        "Kids": "Для детей"
       }
     }
   },
@@ -245,7 +247,8 @@ const resources = {
         "Rumba": "Rumba",
         "Pasodoble": "Pasodoble",
         "Foxtrot": "Foxtrot",
-        "Jive": "Jive"
+        "Jive": "Jive",
+        "Kids": "Para niños"
       }
     }
   }

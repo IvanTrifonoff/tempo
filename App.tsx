@@ -5,7 +5,7 @@ import { STYLE_COLORS } from './constants';
 import { 
   PlayIcon, PauseIcon, SkipForward, SkipBack, SettingsIcon, 
   PlusIcon, UserIcon, HeartIcon, PlaylistIcon, 
-  MetronomeIcon, TrashIcon 
+  MetronomeIcon, TrashIcon, RepeatIcon, ShuffleIcon
 } from './components/Icons';
 import AdminPanel from './components/AdminPanel';
 import AuthModal from './components/AuthModal';
@@ -48,7 +48,9 @@ const App: React.FC = () => {
     duration: 0,
     volume: 0.8,
     isPauseCountdown: false,
-    countdownValue: 0
+    countdownValue: 0,
+    isRepeat: false,
+    isShuffle: false
   });
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -190,6 +192,8 @@ const App: React.FC = () => {
       currentTrack: track, 
       isPlaying: true,
       playbackRate: 1.0,
+      currentTime: 0,
+      duration: 0,
       isPauseCountdown: false 
     }));
     setIsPlayerVisible(true);
@@ -198,11 +202,19 @@ const App: React.FC = () => {
   const skip = useCallback((direction: 'next' | 'prev') => {
     if (filteredTracks.length === 0) return;
     const currentIndex = filteredTracks.findIndex(t => t.id === player.currentTrack?.id);
-    let nextIndex = direction === 'next' 
-      ? (currentIndex + 1) % filteredTracks.length 
-      : (currentIndex - 1 + filteredTracks.length) % filteredTracks.length;
+    let nextIndex = currentIndex;
+
+    if (player.isShuffle) {
+        do {
+            nextIndex = Math.floor(Math.random() * filteredTracks.length);
+        } while (nextIndex === currentIndex && filteredTracks.length > 1);
+    } else {
+        nextIndex = direction === 'next' 
+          ? (currentIndex + 1) % filteredTracks.length 
+          : (currentIndex - 1 + filteredTracks.length) % filteredTracks.length;
+    }
     selectTrack(filteredTracks[nextIndex]);
-  }, [player.currentTrack, filteredTracks, selectTrack]);
+  }, [player.currentTrack, filteredTracks, selectTrack, player.isShuffle]);
 
   useEffect(() => {
     if (!audioRef.current || !player.currentTrack) return;
@@ -230,10 +242,23 @@ const App: React.FC = () => {
         setPlayer(p => ({ ...p, countdownValue: p.countdownValue - 1 }));
       }, 1000);
     } else if (player.isPauseCountdown && player.countdownValue === 0) {
-      skip('next');
+      if (player.isRepeat) {
+        setPlayer(p => ({ 
+            ...p, 
+            isPlaying: true, 
+            isPauseCountdown: false,
+            currentTime: 0 
+        }));
+        if (audioRef.current) {
+            audioRef.current.currentTime = 0;
+            audioRef.current.play().catch(console.error);
+        }
+      } else {
+        skip('next');
+      }
     }
     return () => { if (timer) clearTimeout(timer); };
-  }, [player.isPauseCountdown, player.countdownValue, skip]);
+  }, [player.isPauseCountdown, player.countdownValue, skip, player.isRepeat]);
 
   const toggleTrackInPlaylist = async (playlistId: string, isAdding: boolean) => {
     if (!token || !playlistModalTrackId) return;
@@ -499,12 +524,14 @@ const App: React.FC = () => {
                 </div>
 
                 <div className="flex flex-col items-center gap-3">
-                  <div className="flex items-center gap-8">
+                  <div className="flex items-center gap-4">
+                    <button onClick={() => setPlayer(p => ({...p, isShuffle: !p.isShuffle}))} className="text-gray-500 hover:text-white transition-all"><ShuffleIcon active={player.isShuffle} /></button>
                     <button onClick={() => skip('prev')} className="text-gray-500 hover:text-white transition-all hover:scale-110"><SkipBack /></button>
                     <button onClick={togglePlay} className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-black hover:scale-110 active:scale-95 transition-all shadow-xl">
                       {player.isPlaying ? <PauseIcon /> : <PlayIcon />}
                     </button>
                     <button onClick={() => skip('next')} className="text-gray-500 hover:text-white transition-all hover:scale-110"><SkipForward /></button>
+                    <button onClick={() => setPlayer(p => ({...p, isRepeat: !p.isRepeat}))} className="text-gray-500 hover:text-white transition-all"><RepeatIcon active={player.isRepeat} /></button>
                   </div>
                   
                   <div className="w-full flex items-center gap-3 text-[11px] font-mono text-gray-500 font-bold">
@@ -566,7 +593,16 @@ const App: React.FC = () => {
         ref={audioRef}
         src={player.currentTrack?.url}
         onTimeUpdate={() => { if (audioRef.current) setPlayer(p => ({ ...p, currentTime: audioRef.current?.currentTime || 0, duration: audioRef.current?.duration || 0 })); }}
-        onEnded={() => skip('next')}
+        onEnded={() => {
+            if (player.isRepeat) {
+                if (audioRef.current) {
+                    audioRef.current.currentTime = 0;
+                    audioRef.current.play().catch(console.error);
+                }
+            } else {
+                skip('next');
+            }
+        }}
       />
 
       {/* TRAINING MODAL */}

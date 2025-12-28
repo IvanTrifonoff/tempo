@@ -8,7 +8,8 @@ export enum DanceStyle {
   RUMBA = 'Rumba',
   PASODOBLE = 'Pasodoble',
   FOXTROT = 'Foxtrot',
-  JIVE = 'Jive'
+  JIVE = 'Jive',
+  KIDS = 'Kids'
 }
 
 export interface Track {
@@ -53,4 +54,6 @@ export interface PlayerState {
   volume: number;
   isPauseCountdown: boolean;
   countdownValue: number;
+  isRepeat: boolean;
+  isShuffle: boolean;
 }

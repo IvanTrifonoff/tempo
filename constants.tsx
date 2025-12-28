@@ -95,4 +95,5 @@ export const STYLE_COLORS: Record<DanceStyle, string> = {
   [DanceStyle.PASODOBLE]: 'bg-orange-600',
   [DanceStyle.FOXTROT]: 'bg-emerald-500',
   [DanceStyle.JIVE]: 'bg-purple-500',
+  [DanceStyle.KIDS]: 'bg-cyan-500',
 };

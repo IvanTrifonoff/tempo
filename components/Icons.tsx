@@ -44,8 +44,31 @@ export const PlaylistIcon = () => (
 );
 
 export const TrashIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-6 h-6" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="3 6 5 6 21 6"></polyline>
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+  </svg>
 );
+
+export const ShuffleIcon = ({ active }: { active?: boolean }) => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active ? "#eab308" : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="16 3 21 3 21 8"></polyline>
+    <line x1="4" y1="20" x2="21" y2="3"></line>
+    <polyline points="21 16 21 21 16 21"></polyline>
+    <line x1="15" y1="15" x2="21" y2="21"></line>
+    <line x1="4" y1="4" x2="9" y2="9"></line>
+  </svg>
+);
+
+export const RepeatIcon = ({ active }: { active?: boolean }) => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active ? "#eab308" : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="17 1 21 5 17 9"></polyline>
+    <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+    <polyline points="7 23 3 19 7 15"></polyline>
+    <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+  </svg>
+);
+
 
 export const MetronomeIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-6 h-6" strokeWidth="2">

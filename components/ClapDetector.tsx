@@ -25,7 +25,7 @@ const ClapDetector: React.FC<ClapDetectorProps> = ({ isEnabled, sensitivity, onC
             audio: { 
                 echoCancellation: true, 
                 noiseSuppression: true,
-                autoGainControl: false 
+                autoGainControl: false
             } 
         });
 
@@ -34,7 +34,7 @@ const ClapDetector: React.FC<ClapDetectorProps> = ({ isEnabled, sensitivity, onC
         const source = audioCtx.createMediaStreamSource(stream);
 
         analyser.fftSize = 512;
-        analyser.smoothingTimeConstant = 0.2;
+        analyser.smoothingTimeConstant = 0.1;
         source.connect(analyser);
 
         audioContextRef.current = audioCtx;
@@ -58,7 +58,6 @@ const ClapDetector: React.FC<ClapDetectorProps> = ({ isEnabled, sensitivity, onC
     analyserRef.current?.disconnect();
     audioContextRef.current?.close();
     
-    // Stop tracks to release mic
     if (sourceRef.current) {
         // @ts-ignore
         const stream = sourceRef.current.mediaStream;
@@ -74,33 +73,24 @@ const ClapDetector: React.FC<ClapDetectorProps> = ({ isEnabled, sensitivity, onC
     const bufferLength = analyserRef.current.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
     analyserRef.current.getByteFrequencyData(dataArray);
-
-    // Clap Logic:
-    // 1. Sudden volume spike (transient)
-    // 2. High frequency content (2kHz+)
-    
-    // FFT 512 -> 256 bins. Max freq ~22kHz (if 44.1k). Each bin ~86Hz.
-    // 2000Hz is around bin 23.
-    // 6000Hz is around bin 70.
     
     let highFreqEnergy = 0;
-    const startBin = 20; 
-    const endBin = 80; 
+    const startBin = 15; // Focus on 1.2kHz+
+    const endBin = 70;   // up to ~6kHz
     
     for (let i = startBin; i < endBin; i++) {
         highFreqEnergy += dataArray[i];
     }
     const avgEnergy = highFreqEnergy / (endBin - startBin);
-    
-    // Base threshold inverted by sensitivity (0-100)
-    // Sensitivity 50 -> Threshold 70
-    // Sensitivity 90 -> Threshold 30
-    const threshold = 120 - sensitivity; 
 
+    // Map sensitivity (0-100) to a threshold (150-50).
+    // High sensitivity (100) -> lower threshold (50)
+    // Low sensitivity (0) -> higher threshold (150)
+    const threshold = 150 - (sensitivity);
+    
     const now = Date.now();
-    // Debounce 500ms
-    if (avgEnergy > threshold && now - lastClapTimeRef.current > 500) {
-        console.log("CLAP!", avgEnergy);
+    if (avgEnergy > threshold && now - lastClapTimeRef.current > 800) { // Cooldown 800ms
+        console.log("CLAP! Energy:", avgEnergy, "vs Threshold:", threshold);
         onClap();
         lastClapTimeRef.current = now;
     }
