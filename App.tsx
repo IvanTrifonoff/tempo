@@ -13,6 +13,8 @@ import AddToPlaylistModal from './components/AddToPlaylistModal';
 import ClapDetector from './components/ClapDetector';
 import ReloadPrompt from './components/ReloadPrompt';
 
+import UpdateNotification from './components/UpdateNotification';
+
 const App: React.FC = () => {
   const { t, i18n } = useTranslation();
   
@@ -872,6 +874,8 @@ const App: React.FC = () => {
             onToggle={toggleTrackInPlaylist}
         />
       )}
+      
+      <UpdateNotification />
 
       <ClapDetector 
         isEnabled={training.clapDetectionEnabled} 
