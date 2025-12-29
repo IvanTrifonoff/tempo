@@ -608,7 +608,7 @@ const App: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex justify-between items-end">
-                  <div className="min-w-0 pr-2 flex-1" onClick={e => e.stopPropagation()}>
+                  <div className="min-w-0 pr-2 flex-1">
                     {editingTitleId === track.id ? (
                        <input 
                           autoFocus 
