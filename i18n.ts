@@ -23,7 +23,8 @@ const resources = {
         addToPlaylist: "Add to Playlist",
         selectPlaylist: "Select Playlist",
         removeFromPlaylist: "Remove",
-        noPlaylists: "No playlists created yet"
+        noPlaylists: "No playlists created yet",
+        support: "Support"
       },
       auth: {
         welcomeBack: "Welcome Back",
@@ -117,7 +118,8 @@ const resources = {
         addToPlaylist: "Добавить в плейлист",
         selectPlaylist: "Выберите плейлист",
         removeFromPlaylist: "Убрать",
-        noPlaylists: "Плейлистов пока нет"
+        noPlaylists: "Плейлистов пока нет",
+        support: "Поддержка"
       },
       auth: {
         welcomeBack: "С возвращением",
@@ -211,7 +213,8 @@ const resources = {
         addToPlaylist: "Añadir a la lista",
         selectPlaylist: "Seleccionar lista",
         removeFromPlaylist: "Quitar",
-        noPlaylists: "No hay listas todavía"
+        noPlaylists: "No hay listas todavía",
+        support: "Soporte"
       },
       auth: {
         welcomeBack: "Bienvenido de nuevo",
