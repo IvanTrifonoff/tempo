@@ -77,8 +77,9 @@ export const MetronomeIcon = () => (
 );
 
 export const WhistleIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-6 h-6" strokeWidth="2">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M11 11a3 3 0 11-6 0 3 3 0 016 0z" />
-    <path strokeLinecap="round" strokeLinejoin="round" d="M21 9a2 2 0 00-2-2h-6.4a3.001 3.001 0 01-2.4-1.2l-1.6-2a2 2 0 00-1.6-.8H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.5 1.5L9 17h2a2 2 0 002-2v-4h6a2 2 0 002-2V9z" />
+  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-6 h-6">
+    <path d="M11 19a4 4 0 0 0 4-4V9a1 1 0 0 0-1-1H9a5 5 0 0 0-5 5v1a4 4 0 0 0 4 4Z"/>
+    <path d="M15 9V5a1 1 0 0 0-1-1H9"/>
+    <path d="M19 9h2a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-2"/>
   </svg>
 );
