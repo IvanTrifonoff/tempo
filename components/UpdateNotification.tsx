@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-
-// Эту версию мы будем менять руками при важных обновлениях
-const CURRENT_VERSION = '1.0.5-test';
+import { APP_VERSION } from '../constants';
 
 const UpdateNotification: React.FC = () => {
   const { t } = useTranslation();
@@ -11,13 +9,13 @@ const UpdateNotification: React.FC = () => {
   useEffect(() => {
     const savedVersion = localStorage.getItem('app_version');
     // Показываем, если сохраненная версия отличается от текущей
-    if (savedVersion !== CURRENT_VERSION) {
+    if (savedVersion !== APP_VERSION) {
       setIsOpen(true);
     }
   }, []);
 
   const handleClose = () => {
-    localStorage.setItem('app_version', CURRENT_VERSION);
+    localStorage.setItem('app_version', APP_VERSION);
     setIsOpen(false);
   };
 
@@ -31,7 +29,7 @@ const UpdateNotification: React.FC = () => {
       >
         <div className="mb-4 flex flex-col items-center">
           <span className="inline-block px-2 py-1 bg-yellow-500/10 text-yellow-500 text-[10px] font-black uppercase tracking-wider rounded-md mb-2">
-            v{CURRENT_VERSION}
+            v{APP_VERSION}
           </span>
           <h2 className="text-xl font-serif text-white">{t('update.title')}</h2>
         </div>

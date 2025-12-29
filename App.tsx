@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DanceStyle, Track, User, PlayerState, Playlist, TrainingSettings } from './types';
-import { STYLE_COLORS } from './constants';
 import { 
   PlayIcon, PauseIcon, SkipForward, SkipBack, SettingsIcon, 
   PlusIcon, UserIcon, HeartIcon, PlaylistIcon, 
   MetronomeIcon, TrashIcon, RepeatIcon, ShuffleIcon
 } from './components/Icons';
+import { STYLE_COLORS, APP_VERSION } from './constants';
 import AdminPanel from './components/AdminPanel';
 import AuthModal from './components/AuthModal';
 import AddToPlaylistModal from './components/AddToPlaylistModal';
@@ -827,7 +827,7 @@ const App: React.FC = () => {
               {t('coach.close')}
             </button>
             <div className="mt-8 text-[10px] text-gray-600 text-center uppercase tracking-widest font-bold">
-                v1.0.2 • tempo.TRFNV
+                v{APP_VERSION} • tempo.TRFNV
             </div>
           </div>
         </div>
