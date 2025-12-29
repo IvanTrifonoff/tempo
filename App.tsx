@@ -302,6 +302,31 @@ const App: React.FC = () => {
     selectTrack(filteredTracks[nextIndex]);
   }, [player.currentTrack, filteredTracks, selectTrack, player.isShuffle]);
 
+  // --- Media Session API (Background Play) ---
+  useEffect(() => {
+    if ('mediaSession' in navigator && player.currentTrack) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: player.currentTrack.title,
+        artist: player.currentTrack.artist,
+        album: t(`styles.${player.currentTrack.style}`),
+        artwork: [
+          { src: '/icon.svg', sizes: '96x96', type: 'image/svg+xml' },
+          { src: '/icon.svg', sizes: '512x512', type: 'image/svg+xml' },
+        ]
+      });
+
+      navigator.mediaSession.setActionHandler('play', async () => {
+        await initAudioCtx();
+        setPlayer(p => ({ ...p, isPlaying: true, isPauseCountdown: false }));
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+        setPlayer(p => ({ ...p, isPlaying: false }));
+      });
+      navigator.mediaSession.setActionHandler('previoustrack', () => skip('prev'));
+      navigator.mediaSession.setActionHandler('nexttrack', () => skip('next'));
+    }
+  }, [player.currentTrack, togglePlay, skip, t, initAudioCtx]);
+
   useEffect(() => {
     if (!audioRef.current || !player.currentTrack) return;
     audioRef.current.volume = player.volume;
@@ -845,9 +870,9 @@ const App: React.FC = () => {
       )}
 
       {showPlaylistCreator && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4">
-          <div className="bg-[#1a1a1a] border border-white/10 p-8 rounded-3xl w-full max-w-sm shadow-2xl">
-            <h2 className="text-2xl font-serif text-white mb-6">{t('app.newPlaylist')}</h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-2xl p-4 animate-in fade-in duration-200">
+          <div className="bg-[#1a1a1a] border border-white/10 p-8 rounded-[2rem] w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-200">
+            <h2 className="text-2xl font-serif text-white mb-6 text-center">{t('app.newPlaylist')}</h2>
             <form onSubmit={(e) => { 
                 e.preventDefault(); 
                 const name = (e.target as any).playlistName.value; 
@@ -863,10 +888,28 @@ const App: React.FC = () => {
                     setShowPlaylistCreator(false); 
                 } 
             }}>
-              <input name="playlistName" type="text" autoFocus required className="w-full bg-black/50 border border-white/10 rounded-xl px-5 py-3 text-white mb-6 outline-none" placeholder={t('app.playlistName')} />
-              <div className="flex gap-4">
-                <button type="button" onClick={() => setShowPlaylistCreator(false)} className="flex-1 py-3 text-gray-400">{t('app.cancel')}</button>
-                <button type="submit" className="flex-1 py-3 bg-indigo-500 text-white font-bold rounded-xl">{t('app.create')}</button>
+              <input 
+                name="playlistName" 
+                type="text" 
+                autoFocus 
+                required 
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white mb-8 outline-none focus:border-yellow-500 transition select-text placeholder:text-gray-600" 
+                placeholder={t('app.playlistName')} 
+              />
+              <div className="flex gap-3">
+                <button 
+                  type="button" 
+                  onClick={() => setShowPlaylistCreator(false)} 
+                  className="flex-1 py-3.5 rounded-xl text-gray-400 font-bold hover:bg-white/5 hover:text-white transition uppercase text-xs tracking-wider"
+                >
+                  {t('app.cancel')}
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-1 py-3.5 bg-yellow-500 text-black font-bold rounded-xl hover:bg-yellow-400 transition uppercase text-xs tracking-wider shadow-lg"
+                >
+                  {t('app.create')}
+                </button>
               </div>
             </form>
           </div>
