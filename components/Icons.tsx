@@ -75,3 +75,10 @@ export const MetronomeIcon = () => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0a3 3 0 100 6 3 3 0 000-6zM19 3l-7 12M5 3l7 12" />
   </svg>
 );
+
+export const WhistleIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-6 h-6" strokeWidth="2">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M11 11a3 3 0 11-6 0 3 3 0 016 0z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21 9a2 2 0 00-2-2h-6.4a3.001 3.001 0 01-2.4-1.2l-1.6-2a2 2 0 00-1.6-.8H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.5 1.5L9 17h2a2 2 0 002-2v-4h6a2 2 0 002-2V9z" />
+  </svg>
+);
