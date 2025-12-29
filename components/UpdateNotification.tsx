@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 
 // Эту версию мы будем менять руками при важных обновлениях
-const CURRENT_VERSION = '1.0.3';
+const CURRENT_VERSION = '1.0.4';
 
 const UpdateNotification: React.FC = () => {
   const { t } = useTranslation();
@@ -32,9 +32,9 @@ const UpdateNotification: React.FC = () => {
         <div className="flex items-start justify-between mb-4">
           <div>
             <span className="inline-block px-2 py-1 bg-yellow-500/10 text-yellow-500 text-[10px] font-black uppercase tracking-wider rounded-md mb-2">
-              New Update
+              v{CURRENT_VERSION}
             </span>
-            <h2 className="text-xl font-serif text-white">Версия {CURRENT_VERSION}</h2>
+            <h2 className="text-xl font-serif text-white">{t('update.title')}</h2>
           </div>
           <button 
             onClick={handleClose}
@@ -44,21 +44,20 @@ const UpdateNotification: React.FC = () => {
           </button>
         </div>
 
-        <div className="space-y-3 text-gray-300 text-sm mb-6">
+        <div className="space-y-3 text-gray-300 text-sm mb-6 font-light leading-relaxed">
           <p>
-            <strong className="text-white">Исправлена авторизация:</strong><br/>
-            Мы починили ввод текста при входе и регистрации. Если у вас возникали проблемы с клавиатурой — теперь всё работает плавно.
+            {t('update.desc')}
           </p>
-          <p className="text-xs text-gray-500 mt-2">
-            * Приложение обновляется автоматически. Если что-то работает не так — просто перезагрузите страницу.
+          <p className="text-[10px] text-gray-600 mt-4 border-t border-white/5 pt-2 uppercase tracking-wide">
+             tempo.TRFNV • dance coach PRO
           </p>
         </div>
 
         <button 
           onClick={handleClose}
-          className="w-full py-3.5 bg-yellow-500 text-black font-bold uppercase rounded-xl hover:bg-yellow-400 transition transform active:scale-95"
+          className="w-full py-4 bg-yellow-500 text-black font-bold uppercase text-sm tracking-wider rounded-xl hover:bg-yellow-400 transition transform active:scale-95"
         >
-          {t('app.close') || 'Отлично / OK'}
+          {t('update.action')}
         </button>
       </div>
     </div>

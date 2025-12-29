@@ -89,6 +89,11 @@ const resources = {
         updateAvailable: "New version available!",
         reload: "Update",
         close: "Close"
+      },
+      update: {
+        title: "Update Installed",
+        desc: "We've improved text input in login screens. Keyboard issues are resolved.",
+        action: "Awesome!"
       }
     }
   },
@@ -178,6 +183,11 @@ const resources = {
         updateAvailable: "Доступна новая версия!",
         reload: "Обновить",
         close: "Закрыть"
+      },
+      update: {
+        title: "Обновление установлено",
+        desc: "Мы исправили ввод текста при входе. Проблемы с клавиатурой решены.",
+        action: "Отлично!"
       }
     }
   },
@@ -267,6 +277,11 @@ const resources = {
         updateAvailable: "¡Nueva versión disponible!",
         reload: "Actualizar",
         close: "Cerrar"
+      },
+      update: {
+        title: "Actualización instalada",
+        desc: "Hemos arreglado la entrada de texto en el inicio de sesión.",
+        action: "¡Genial!"
       }
     }
   }
