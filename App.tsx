@@ -30,6 +30,8 @@ const App: React.FC = () => {
   const [showPlaylistCreator, setShowPlaylistCreator] = useState(false);
   const [showTrainingPanel, setShowTrainingPanel] = useState(false);
   const [editingBpmId, setEditingBpmId] = useState<string | null>(null);
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
+  const [editingArtistId, setEditingArtistId] = useState<string | null>(null);
   const [isPlayerVisible, setIsPlayerVisible] = useState(true);
   const [playlistModalTrackId, setPlaylistModalTrackId] = useState<string | null>(null);
   const [micLevel, setMicLevel] = useState(0);
@@ -405,42 +407,39 @@ const App: React.FC = () => {
     }
   };
 
-  const toggleFavorite = (trackId: string) => {
-    if (!user || !token) { setShowAuth(true); return; }
-    
-    setUser(prev => {
-      if (!prev) return null;
-      const isFav = prev.favorites.includes(trackId);
-      return { ...prev, favorites: isFav ? prev.favorites.filter(id => id !== trackId) : [...prev.favorites, trackId] };
-    });
+  const toggleFavorite = async (trackId: string) => {
+    if (!token) { setShowAuth(true); return; }
+    try {
+        const res = await fetch('/api/user/favorites', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ trackId })
+        });
+        const newFavs = await res.json();
+        setUser(u => u ? { ...u, favorites: newFavs } : null);
+    } catch (err) { console.error(err); }
+  };
 
-    fetch('/api/user/favorites', {
-        method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ trackId })
-    }).catch(console.error);
+  const updateTrackMetadata = async (trackId: string, field: 'title' | 'artist' | 'bpm', value: string | number) => {
+      if (!token) return;
+      setEditingBpmId(null);
+      setEditingTitleId(null);
+      setEditingArtistId(null);
+      
+      // Optimistic update
+      setTracks(prev => prev.map(t => t.id === trackId ? { ...t, [field]: value } : t));
+
+      try {
+          await fetch(`/api/tracks/${trackId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+              body: JSON.stringify({ [field]: value })
+          });
+      } catch (e) { console.error(e); }
   };
 
   const updateTrackBpm = (trackId: string, newBpm: number) => {
-    if (!token) return;
-    const updatedTracks = tracks.map(t => t.id === trackId ? { ...t, bpm: newBpm } : t);
-    setTracks(updatedTracks);
-    if (player.currentTrack?.id === trackId) {
-      setPlayer(p => ({ ...p, currentTrack: { ...p.currentTrack!, bpm: newBpm } }));
-    }
-    setEditingBpmId(null);
-    
-    fetch(`/api/tracks/${trackId}/bpm`, {
-      method: 'PATCH',
-      headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({ bpm: newBpm })
-    }).catch(console.error);
+      updateTrackMetadata(trackId, 'bpm', newBpm);
   };
 
   const deleteTrack = (trackId: string) => {
@@ -609,9 +608,44 @@ const App: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex justify-between items-end">
-                  <div className="min-w-0 pr-2">
-                    <h3 className="text-base font-bold text-white mb-0.5 group-hover:text-yellow-500 transition truncate leading-tight">{track.title}</h3>
-                    <p className="text-gray-400 text-sm truncate">{track.artist}</p>
+                  <div className="min-w-0 pr-2 flex-1" onClick={e => e.stopPropagation()}>
+                    {editingTitleId === track.id ? (
+                       <input 
+                          autoFocus 
+                          defaultValue={track.title} 
+                          className="w-full bg-transparent text-yellow-500 text-base font-bold outline-none border-b border-yellow-500 mb-0.5"
+                          onBlur={e => updateTrackMetadata(track.id, 'title', e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && updateTrackMetadata(track.id, 'title', (e.target as HTMLInputElement).value)}
+                       />
+                    ) : (
+                       <div className="group/title flex items-center gap-2">
+                          <h3 className="text-base font-bold text-white mb-0.5 group-hover:text-yellow-500 transition truncate leading-tight">{track.title}</h3>
+                          {user?.isAdmin && (
+                             <button onClick={() => setEditingTitleId(track.id)} className="opacity-0 group-hover/title:opacity-100 text-gray-500 hover:text-yellow-500 transition">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>
+                             </button>
+                          )}
+                       </div>
+                    )}
+
+                    {editingArtistId === track.id ? (
+                       <input 
+                          autoFocus 
+                          defaultValue={track.artist} 
+                          className="w-full bg-transparent text-gray-400 text-sm outline-none border-b border-gray-500"
+                          onBlur={e => updateTrackMetadata(track.id, 'artist', e.target.value)}
+                          onKeyDown={e => e.key === 'Enter' && updateTrackMetadata(track.id, 'artist', (e.target as HTMLInputElement).value)}
+                       />
+                    ) : (
+                       <div className="group/artist flex items-center gap-2">
+                          <p className="text-gray-400 text-sm truncate">{track.artist}</p>
+                          {user?.isAdmin && (
+                             <button onClick={() => setEditingArtistId(track.id)} className="opacity-0 group-hover/artist:opacity-100 text-gray-600 hover:text-white transition">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>
+                             </button>
+                          )}
+                       </div>
+                    )}
                   </div>
                   {isThisCurrent && training.metronomeEnabled && (
                     <div className={`w-2 h-2 rounded-full transition-all duration-75 flex-shrink-0 ${isMetronomeVisualActive ? 'bg-yellow-500 scale-150 shadow-[0_0_10px_#eab308]' : 'bg-yellow-500/20'}`}></div>
