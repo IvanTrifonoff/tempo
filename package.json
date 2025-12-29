@@ -1,7 +1,7 @@
 {
   "name": "tempo-trfnv-dance-coach-pro",
   "private": true,
-  "version": "1.0.8-test",
+  "version": "1.0.9-test",
   "type": "module",
   "scripts": {
     "dev": "vite",

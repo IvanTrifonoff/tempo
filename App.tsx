@@ -497,7 +497,7 @@ const App: React.FC = () => {
             className={`p-1.5 md:px-3 md:py-1.5 rounded-full border transition-all duration-300 flex items-center gap-2 ${training.metronomeEnabled ? 'bg-yellow-500 text-black border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.4)]' : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'}`}
           >
             <MetronomeIcon />
-            <span className="hidden md:inline font-bold text-xs">{t('app.metronome')}</span>
+            <span className="hidden md:inline font-bold text-sm">{t('app.metronome')}</span>
           </button>
 
           <button 
@@ -505,16 +505,16 @@ const App: React.FC = () => {
             className={`flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-1.5 rounded-full border transition-all duration-300 ${training.isActive ? 'bg-yellow-500 text-black border-yellow-500 shadow-lg' : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'}`}
           >
             <SettingsIcon />
-            <span className="hidden md:inline font-bold text-xs tracking-tight">{t('app.coachMode')}</span>
+            <span className="hidden md:inline font-bold text-sm tracking-tight">{t('app.coachMode')}</span>
           </button>
           
           {user?.isAdmin && (
-            <button onClick={() => setShowAdmin(true)} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full border border-white/10 transition text-xs">
+            <button onClick={() => setShowAdmin(true)} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full border border-white/10 transition text-sm">
               <PlusIcon /> <span className="hidden md:inline">{t('app.upload')}</span>
             </button>
           )}
           
-          <button onClick={() => user ? handleLogout() : setShowAuth(true)} className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-400 text-black px-3 py-1.5 md:px-4 md:py-1.5 rounded-full font-bold transition shadow-md text-xs">
+          <button onClick={() => user ? handleLogout() : setShowAuth(true)} className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-400 text-black px-3 py-1.5 md:px-4 md:py-1.5 rounded-full font-bold transition shadow-md text-sm">
             <UserIcon /> <span className="hidden xs:inline">{user ? t('app.logout') : t('app.login')}</span>
           </button>
         </div>
@@ -522,20 +522,20 @@ const App: React.FC = () => {
 
       <main className="max-w-7xl mx-auto px-4 pt-4">
         <div className="mb-4 flex flex-wrap gap-1.5 items-center">
-          <button onClick={() => setActiveStyle('All')} className={`px-3 py-1.5 text-xs rounded-full transition ${activeStyle === 'All' ? 'bg-yellow-500 text-black' : 'bg-white/5 text-gray-400 border border-white/10'}`}>{t('app.all')}</button>
-          <button onClick={() => setActiveStyle('Favorites')} className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-full transition ${activeStyle === 'Favorites' ? 'bg-rose-500 text-white' : 'bg-white/5 text-gray-400 border border-white/10'}`}><HeartIcon filled={activeStyle === 'Favorites'} /> {t('app.favorites')}</button>
+          <button onClick={() => setActiveStyle('All')} className={`px-3 py-1.5 text-sm rounded-full transition ${activeStyle === 'All' ? 'bg-yellow-500 text-black' : 'bg-white/5 text-gray-400 border border-white/10'}`}>{t('app.all')}</button>
+          <button onClick={() => setActiveStyle('Favorites')} className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-full transition ${activeStyle === 'Favorites' ? 'bg-rose-500 text-white' : 'bg-white/5 text-gray-400 border border-white/10'}`}><HeartIcon filled={activeStyle === 'Favorites'} /> {t('app.favorites')}</button>
           <div className="h-4 w-[1px] bg-white/10 mx-1" />
           {Object.values(DanceStyle).map(style => (
-            <button key={style} onClick={() => setActiveStyle(style)} className={`px-3 py-1.5 text-xs rounded-full transition ${activeStyle === style ? 'bg-yellow-500 text-black shadow-md' : 'bg-white/5 text-gray-400 border border-white/10'}`}>{t(`styles.${style}`)}</button>
+            <button key={style} onClick={() => setActiveStyle(style)} className={`px-3 py-1.5 text-sm rounded-full transition ${activeStyle === style ? 'bg-yellow-500 text-black shadow-md' : 'bg-white/5 text-gray-400 border border-white/10'}`}>{t(`styles.${style}`)}</button>
           ))}
           <div className="h-4 w-[1px] bg-white/10 mx-1" />
           {playlists.map(pl => (
             <div key={pl.id} className="relative group">
-              <button onClick={() => setActiveStyle(pl.id)} className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-full transition ${activeStyle === pl.id ? 'bg-indigo-500 text-white shadow-md' : 'bg-white/5 text-gray-400 border border-white/10'}`}><PlaylistIcon /> {pl.name}</button>
+              <button onClick={() => setActiveStyle(pl.id)} className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-full transition ${activeStyle === pl.id ? 'bg-indigo-500 text-white shadow-md' : 'bg-white/5 text-gray-400 border border-white/10'}`}><PlaylistIcon /> {pl.name}</button>
               <button onClick={(e) => { e.stopPropagation(); setPlaylists(prev => prev.filter(p => p.id !== pl.id)); if (activeStyle === pl.id) setActiveStyle('All'); }} className="absolute -top-1 -right-1 bg-red-500 text-white p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow-lg scale-75"><TrashIcon /></button>
             </div>
           ))}
-          <button onClick={() => user ? setShowPlaylistCreator(true) : setShowAuth(true)} className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-full bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 transition border-dashed"><PlusIcon /> {t('app.playlist')}</button>
+          <button onClick={() => user ? setShowPlaylistCreator(true) : setShowAuth(true)} className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-full bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 transition border-dashed"><PlusIcon /> {t('app.playlist')}</button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -572,7 +572,7 @@ const App: React.FC = () => {
                         />
                       ) : (
                         <div className="flex items-center gap-1">
-                          <span className="text-gray-300 text-xs font-mono">{track.bpm} BPM</span>
+                          <span className="text-gray-300 text-sm font-mono">{track.bpm} BPM</span>
                           {user?.isAdmin && (
                             <button onClick={() => setEditingBpmId(track.id)} className="text-gray-600 hover:text-yellow-500 transition">
                               <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
@@ -585,8 +585,8 @@ const App: React.FC = () => {
                 </div>
                 <div className="flex justify-between items-end">
                   <div className="min-w-0 pr-2">
-                    <h3 className="text-sm font-bold text-white mb-0.5 group-hover:text-yellow-500 transition truncate leading-tight">{track.title}</h3>
-                    <p className="text-gray-400 text-xs truncate">{track.artist}</p>
+                    <h3 className="text-base font-bold text-white mb-0.5 group-hover:text-yellow-500 transition truncate leading-tight">{track.title}</h3>
+                    <p className="text-gray-400 text-sm truncate">{track.artist}</p>
                   </div>
                   {isThisCurrent && training.metronomeEnabled && (
                     <div className={`w-2 h-2 rounded-full transition-all duration-75 flex-shrink-0 ${isMetronomeVisualActive ? 'bg-yellow-500 scale-150 shadow-[0_0_10px_#eab308]' : 'bg-yellow-500/20'}`}></div>
