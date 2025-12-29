@@ -200,6 +200,8 @@ const App: React.FC = () => {
                     });
                     micStreamRef.current = stream;
                     setMicLevel(0.00001);
+                    // Ensure audio context is ready when enabling clap detection
+                    await initAudioCtx();
                 } catch (err) {
                     setTraining(t => ({ ...t, clapDetectionEnabled: false }));
                 }
@@ -216,13 +218,7 @@ const App: React.FC = () => {
         }
     };
     manageMic();
-  }, [training.clapDetectionEnabled, selectedInputId]);
-
-  useEffect(() => {
-    const handleGlobalClick = () => { initAudioCtx(); };
-    window.addEventListener('click', handleGlobalClick);
-    return () => window.removeEventListener('click', handleGlobalClick);
-  }, [initAudioCtx]);
+  }, [training.clapDetectionEnabled, selectedInputId, initAudioCtx]);
 
   const filteredTracks = useMemo(() => {
     if (activeStyle === 'All') return tracks;
@@ -269,12 +265,16 @@ const App: React.FC = () => {
   }, [training.metronomeEnabled, player.isPlaying, player.currentTrack, player.playbackRate, playMetronomeTick]);
 
   const togglePlay = useCallback(async () => {
-    await initAudioCtx();
+    if (training.metronomeEnabled || training.clapDetectionEnabled) {
+        await initAudioCtx();
+    }
     setPlayer(p => ({ ...p, isPlaying: !p.isPlaying, isPauseCountdown: false }));
-  }, [initAudioCtx]);
+  }, [initAudioCtx, training.metronomeEnabled, training.clapDetectionEnabled]);
 
   const selectTrack = useCallback(async (track: Track) => {
-    await initAudioCtx();
+    if (training.metronomeEnabled || training.clapDetectionEnabled) {
+        await initAudioCtx();
+    }
     setPlayer(prev => ({ 
       ...prev, 
       currentTrack: track, 
@@ -616,13 +616,14 @@ const App: React.FC = () => {
                           className="w-full bg-transparent text-yellow-500 text-base font-bold outline-none border-b border-yellow-500 mb-0.5"
                           onBlur={e => updateTrackMetadata(track.id, 'title', e.target.value)}
                           onKeyDown={e => e.key === 'Enter' && updateTrackMetadata(track.id, 'title', (e.target as HTMLInputElement).value)}
+                          onClick={e => e.stopPropagation()}
                        />
                     ) : (
-                       <div className="group/title flex items-center gap-2">
+                       <div className="flex items-center gap-2">
                           <h3 className="text-base font-bold text-white mb-0.5 group-hover:text-yellow-500 transition truncate leading-tight">{track.title}</h3>
                           {user?.isAdmin && (
-                             <button onClick={() => setEditingTitleId(track.id)} className="opacity-0 group-hover/title:opacity-100 text-gray-500 hover:text-yellow-500 transition">
-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>
+                             <button onClick={(e) => { e.stopPropagation(); setEditingTitleId(track.id); }} className="text-gray-600 hover:text-yellow-500 transition shrink-0">
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
                              </button>
                           )}
                        </div>
@@ -635,13 +636,14 @@ const App: React.FC = () => {
                           className="w-full bg-transparent text-gray-400 text-sm outline-none border-b border-gray-500"
                           onBlur={e => updateTrackMetadata(track.id, 'artist', e.target.value)}
                           onKeyDown={e => e.key === 'Enter' && updateTrackMetadata(track.id, 'artist', (e.target as HTMLInputElement).value)}
+                          onClick={e => e.stopPropagation()}
                        />
                     ) : (
-                       <div className="group/artist flex items-center gap-2">
+                       <div className="flex items-center gap-2">
                           <p className="text-gray-400 text-sm truncate">{track.artist}</p>
                           {user?.isAdmin && (
-                             <button onClick={() => setEditingArtistId(track.id)} className="opacity-0 group-hover/artist:opacity-100 text-gray-600 hover:text-white transition">
-                                <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg>
+                             <button onClick={(e) => { e.stopPropagation(); setEditingArtistId(track.id); }} className="text-gray-600 hover:text-white transition shrink-0">
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
                              </button>
                           )}
                        </div>
