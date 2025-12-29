@@ -26,7 +26,11 @@ const resources = {
         noPlaylists: "No playlists created yet",
         support: "Support",
         language: "Language",
-        languageDesc: "Interface language"
+        languageDesc: "Interface language",
+        notifications: "Notifications",
+        notificationsOn: "Enabled",
+        notificationsOff: "Enable for updates",
+        enable: "Enable"
       },
       auth: {
         welcomeBack: "Welcome Back",
@@ -123,7 +127,11 @@ const resources = {
         noPlaylists: "Плейлистов пока нет",
         support: "Поддержка",
         language: "Язык",
-        languageDesc: "Язык интерфейса"
+        languageDesc: "Язык интерфейса",
+        notifications: "Уведомления",
+        notificationsOn: "Включены",
+        notificationsOff: "Включить для обновлений",
+        enable: "Включить"
       },
       auth: {
         welcomeBack: "С возвращением",
@@ -220,7 +228,11 @@ const resources = {
         noPlaylists: "No hay listas todavía",
         support: "Soporte",
         language: "Idioma",
-        languageDesc: "Idioma de la interfaz"
+        languageDesc: "Idioma de la interfaz",
+        notifications: "Notificaciones",
+        notificationsOn: "Activadas",
+        notificationsOff: "Activar para actualizaciones",
+        enable: "Activar"
       },
       auth: {
         welcomeBack: "Bienvenido de nuevo",

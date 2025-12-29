@@ -30,12 +30,6 @@ const App: React.FC = () => {
     }
   });
 
-  useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-  }, []);
-  
   // --- Состояние приложения ---
   const [tracks, setTracks] = useState<Track[]>([]);
   const [user, setUser] = useState<User | null>(null);
@@ -59,6 +53,9 @@ const App: React.FC = () => {
   const [audioOutputs, setAudioOutputs] = useState<MediaDeviceInfo[]>([]);
   const [selectedInputId, setSelectedInputId] = useState<string>('');
   const [selectedOutputId, setSelectedOutputId] = useState<string>('');
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
+    'Notification' in window ? Notification.permission : 'default'
+  );
   
   const [training, setTraining] = useState<TrainingSettings>({
     isActive: false,
@@ -69,6 +66,13 @@ const App: React.FC = () => {
     clapDetectionEnabled: false,
     clapSensitivity: 60
   });
+
+  // --- Notification Permission ---
+  const handleRequestNotification = async () => {
+    if (!('Notification' in window)) return;
+    const permission = await Notification.requestPermission();
+    setNotificationPermission(permission);
+  };
 
   // --- Wake Lock ---
   useEffect(() => {
@@ -839,6 +843,31 @@ const App: React.FC = () => {
                         </button>
                     ))}
                  </div>
+              </div>
+
+              {/* Notifications */}
+              <div className="p-6 bg-white/5 rounded-3xl border border-white/10 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${notificationPermission === 'granted' ? 'bg-green-500/20 text-green-500' : 'bg-gray-500/20 text-gray-500'}`}>
+                    🔔
+                  </div>
+                  <div>
+                    <h4 className="text-white font-bold text-lg">{t('app.notifications')}</h4>
+                    <p className="text-xs text-gray-500">
+                      {notificationPermission === 'granted' 
+                        ? t('app.notificationsOn') 
+                        : t('app.notificationsOff')}
+                    </p>
+                  </div>
+                </div>
+                {notificationPermission !== 'granted' && (
+                  <button 
+                    onClick={handleRequestNotification}
+                    className="px-4 py-2 bg-yellow-500 text-black font-bold rounded-xl text-xs uppercase tracking-wider hover:bg-yellow-400 transition"
+                  >
+                    {t('app.enable')}
+                  </button>
+                )}
               </div>
 
               {/* Autopilot Card */}
