@@ -505,7 +505,7 @@ const App: React.FC = () => {
             className={`flex items-center gap-2 px-3 py-2 md:px-5 md:py-2 rounded-full border transition-all duration-300 ${training.isActive ? 'bg-yellow-500 text-black border-yellow-500 shadow-lg' : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'}`}
           >
             <SettingsIcon />
-            <span className="hidden md:inline font-bold text-sm">{t('app.coachMode')}</span>
+            <span className="hidden md:inline font-bold text-xs tracking-tight">{t('app.coachMode')}</span>
           </button>
           
           {user?.isAdmin && (
@@ -719,10 +719,10 @@ const App: React.FC = () => {
       {/* TRAINING MODAL */}
       {showTrainingPanel && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-2xl p-4 transition-all">
-          <div className="bg-[#1a1a1a] border border-white/10 p-10 rounded-[2.5rem] w-full max-w-lg shadow-2xl relative overflow-hidden">
+          <div className="bg-[#1a1a1a] border border-white/10 p-8 rounded-[2.5rem] w-full max-w-lg shadow-2xl relative overflow-hidden">
             <div className="flex justify-between items-start mb-10">
               <div>
-                <h2 className="text-4xl font-serif text-white font-bold mb-1">{t('coach.title')}</h2>
+                <h2 className="text-2xl font-serif text-white font-bold mb-1">{t('coach.title')}</h2>
                 <p className="text-gray-500 text-sm font-medium">{t('coach.subtitle')}</p>
               </div>
               <button onClick={() => setShowTrainingPanel(false)} className="text-gray-400 hover:text-white text-3xl font-light">&times;</button>
@@ -731,7 +731,7 @@ const App: React.FC = () => {
               {/* Language Selector */}
               <div className="p-6 bg-white/5 rounded-3xl border border-white/10 flex flex-col xs:flex-row items-center justify-between gap-4">
                  <div className="flex items-center gap-3 w-full xs:w-auto">
-                   <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 font-bold text-sm uppercase shrink-0">
+                   <div className="w-10 h-10 rounded-full bg-yellow-500/10 flex items-center justify-center text-yellow-500 font-bold text-sm uppercase shrink-0">
                      {i18n.language ? i18n.language.slice(0,2) : 'EN'}
                    </div>
                    <div>
@@ -744,7 +744,7 @@ const App: React.FC = () => {
                         <button 
                            key={lang} 
                            onClick={() => i18n.changeLanguage(lang)}
-                           className={`px-3 py-2 rounded-lg text-xs font-bold uppercase transition flex-1 xs:flex-none text-center ${i18n.language.startsWith(lang) ? 'bg-indigo-500 text-white shadow-md' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
+                           className={`px-3 py-2 rounded-lg text-xs font-bold uppercase transition flex-1 xs:flex-none text-center ${i18n.language.startsWith(lang) ? 'bg-yellow-500 text-black shadow-md' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
                         >
                             {lang}
                         </button>
