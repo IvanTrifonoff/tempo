@@ -846,9 +846,9 @@ const App: React.FC = () => {
               </div>
 
               {/* Notifications */}
-              <div className="p-6 bg-white/5 rounded-3xl border border-white/10 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${notificationPermission === 'granted' ? 'bg-green-500/20 text-green-500' : 'bg-gray-500/20 text-gray-500'}`}>
+              <div className="p-6 bg-white/5 rounded-3xl border border-white/10 flex flex-col xs:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3 w-full xs:w-auto">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${notificationPermission === 'granted' ? 'bg-green-500/20 text-green-500' : 'bg-gray-500/20 text-gray-500'}`}>
                     🔔
                   </div>
                   <div>
@@ -863,7 +863,7 @@ const App: React.FC = () => {
                 {notificationPermission !== 'granted' && (
                   <button 
                     onClick={handleRequestNotification}
-                    className="px-4 py-2 bg-yellow-500 text-black font-bold rounded-xl text-xs uppercase tracking-wider hover:bg-yellow-400 transition"
+                    className="w-full xs:w-auto px-4 py-2 bg-yellow-500 text-black font-bold rounded-xl text-xs uppercase tracking-wider hover:bg-yellow-400 transition whitespace-nowrap"
                   >
                     {t('app.enable')}
                   </button>
