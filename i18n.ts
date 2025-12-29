@@ -24,7 +24,9 @@ const resources = {
         selectPlaylist: "Select Playlist",
         removeFromPlaylist: "Remove",
         noPlaylists: "No playlists created yet",
-        support: "Support"
+        support: "Support",
+        language: "Language",
+        languageDesc: "Interface language"
       },
       auth: {
         welcomeBack: "Welcome Back",
@@ -119,7 +121,9 @@ const resources = {
         selectPlaylist: "Выберите плейлист",
         removeFromPlaylist: "Убрать",
         noPlaylists: "Плейлистов пока нет",
-        support: "Поддержка"
+        support: "Поддержка",
+        language: "Язык",
+        languageDesc: "Язык интерфейса"
       },
       auth: {
         welcomeBack: "С возвращением",
@@ -214,7 +218,9 @@ const resources = {
         selectPlaylist: "Seleccionar lista",
         removeFromPlaylist: "Quitar",
         noPlaylists: "No hay listas todavía",
-        support: "Soporte"
+        support: "Soporte",
+        language: "Idioma",
+        languageDesc: "Idioma de la interfaz"
       },
       auth: {
         welcomeBack: "Bienvenido de nuevo",
@@ -295,7 +301,7 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    fallbackLng: 'ru',
+    fallbackLng: 'en',
     interpolation: {
       escapeValue: false
     }

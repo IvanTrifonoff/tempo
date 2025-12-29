@@ -492,18 +492,6 @@ const App: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 md:gap-4">
-          <div className="flex gap-1 bg-white/5 rounded-full p-1 border border-white/10">
-             {['en', 'es', 'ru'].map(lang => (
-                 <button 
-                    key={lang} 
-                    onClick={() => changeLanguage(lang)}
-                    className={`px-2 py-1 rounded-full text-xs font-bold uppercase transition ${i18n.language.startsWith(lang) ? 'bg-white/20 text-white' : 'text-gray-500 hover:text-gray-300'}`}
-                 >
-                     {lang}
-                 </button>
-             ))}
-          </div>
-
           <button 
             onClick={() => setTraining(t => ({...t, metronomeEnabled: !t.metronomeEnabled}))}
             className={`p-2 md:px-4 md:py-2 rounded-full border transition-all duration-300 flex items-center gap-2 ${training.metronomeEnabled ? 'bg-yellow-500 text-black border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.4)]' : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'}`}
@@ -740,6 +728,30 @@ const App: React.FC = () => {
               <button onClick={() => setShowTrainingPanel(false)} className="text-gray-400 hover:text-white text-3xl font-light">&times;</button>
             </div>
             <div className="space-y-6">
+              {/* Language Selector */}
+              <div className="p-6 bg-white/5 rounded-3xl border border-white/10 flex flex-col xs:flex-row items-center justify-between gap-4">
+                 <div className="flex items-center gap-3 w-full xs:w-auto">
+                   <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center text-indigo-400 font-bold text-sm uppercase shrink-0">
+                     {i18n.language ? i18n.language.slice(0,2) : 'EN'}
+                   </div>
+                   <div>
+                     <h4 className="text-white font-bold text-lg">{t('app.language')}</h4>
+                     <p className="text-xs text-gray-500">{t('app.languageDesc')}</p>
+                   </div>
+                 </div>
+                 <div className="flex gap-1 bg-black/40 rounded-xl p-1 border border-white/5 w-full xs:w-auto justify-center">
+                    {['en', 'es', 'ru'].map(lang => (
+                        <button 
+                           key={lang} 
+                           onClick={() => i18n.changeLanguage(lang)}
+                           className={`px-3 py-2 rounded-lg text-xs font-bold uppercase transition flex-1 xs:flex-none text-center ${i18n.language.startsWith(lang) ? 'bg-indigo-500 text-white shadow-md' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
+                        >
+                            {lang}
+                        </button>
+                    ))}
+                 </div>
+              </div>
+
               {/* Autopilot Card */}
               <div className="p-6 bg-white/5 rounded-3xl border border-white/10 space-y-6">
                 <div className="flex items-center justify-between gap-4">
