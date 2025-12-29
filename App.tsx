@@ -653,6 +653,17 @@ const App: React.FC = () => {
                     <div className={`w-2 h-2 rounded-full transition-all duration-75 flex-shrink-0 ${isMetronomeVisualActive ? 'bg-yellow-500 scale-150 shadow-[0_0_10px_#eab308]' : 'bg-yellow-500/20'}`}></div>
                   )}
                 </div>
+                
+                {/* Play/Pause Overlay Icon */}
+                <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 pointer-events-none 
+                  ${isThisCurrent && player.isPlaying 
+                    ? 'bg-yellow-500/80 text-black scale-100 backdrop-blur-sm' // Playing state
+                    : 'bg-black/60 text-white scale-0 group-hover:scale-100' // Paused/Hover state
+                  }`}
+                >
+                  {isThisCurrent && player.isPlaying ? <PauseIcon /> : <PlayIcon />}
+                </div>
+
               </div>
             );
           })}
