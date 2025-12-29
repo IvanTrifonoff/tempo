@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useRegisterSW } from 'virtual:pwa-register/react';
 import { DanceStyle, Track, User, PlayerState, Playlist, TrainingSettings } from './types';
 import { 
   PlayIcon, PauseIcon, SkipForward, SkipBack, SettingsIcon, 
@@ -17,6 +18,23 @@ import UpdateNotification from './components/UpdateNotification';
 
 const App: React.FC = () => {
   const { t, i18n } = useTranslation();
+  
+  // --- PWA Updates ---
+  useRegisterSW({
+    onRegistered(r) {
+      if (r) {
+        setInterval(() => {
+          r.update(); // Check for updates every minute
+        }, 60 * 1000);
+      }
+    }
+  });
+
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
   
   // --- Состояние приложения ---
   const [tracks, setTracks] = useState<Track[]>([]);

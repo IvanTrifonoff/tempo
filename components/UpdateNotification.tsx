@@ -11,8 +11,14 @@ const UpdateNotification: React.FC = () => {
     // Показываем, если сохраненная версия отличается от текущей
     if (savedVersion !== APP_VERSION) {
       setIsOpen(true);
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(`Tempo Updated: v${APP_VERSION}`, {
+          body: t('update.desc') || 'New features available!',
+          icon: '/icon.svg'
+        });
+      }
     }
-  }, []);
+  }, [t]);
 
   const handleClose = () => {
     localStorage.setItem('app_version', APP_VERSION);
