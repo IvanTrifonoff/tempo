@@ -160,7 +160,7 @@ const App: React.FC = () => {
     if (!audioCtxRef.current) {
       audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
         sampleRate: 44100,
-        latencyHint: 'interactive'
+        latencyHint: 'playback'
       });
     }
     
