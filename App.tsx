@@ -1,16 +1,17 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useRegisterSW } from 'virtual:pwa-register/react';
 import { DanceStyle, Track, User, PlayerState, Playlist, TrainingSettings } from './types';
 import { 
   PlayIcon, PauseIcon, SkipForward, SkipBack, SettingsIcon, 
   PlusIcon, UserIcon, HeartIcon, PlaylistIcon, 
-  MetronomeIcon, TrashIcon, RepeatIcon, ShuffleIcon, WhistleIcon
+  MetronomeIcon, TrashIcon, RepeatIcon, ShuffleIcon, WhistleIcon,
+  ShieldCheckIcon
 } from './components/Icons';
 import { STYLE_COLORS, APP_VERSION } from './constants';
 import AdminPanel from './components/AdminPanel';
 import AuthModal from './components/AuthModal';
 import AddToPlaylistModal from './components/AddToPlaylistModal';
+import UserManagementModal from './components/UserManagementModal';
 import ClapDetector from './components/ClapDetector';
 import ReloadPrompt from './components/ReloadPrompt';
 
@@ -19,17 +20,6 @@ import UpdateNotification from './components/UpdateNotification';
 const App: React.FC = () => {
   const { t, i18n } = useTranslation();
   
-  // --- PWA Updates ---
-  useRegisterSW({
-    onRegistered(r) {
-      if (r) {
-        setInterval(() => {
-          r.update(); // Check for updates every minute
-        }, 60 * 1000);
-      }
-    }
-  });
-
   // --- Состояние приложения ---
   const [tracks, setTracks] = useState<Track[]>([]);
   const [user, setUser] = useState<User | null>(null);
@@ -40,6 +30,7 @@ const App: React.FC = () => {
   const [showAdmin, setShowAdmin] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showUserManagement, setShowUserManagement] = useState(false);
   const [showPlaylistCreator, setShowPlaylistCreator] = useState(false);
   const [showTrainingPanel, setShowTrainingPanel] = useState(false);
   const [editingBpmId, setEditingBpmId] = useState<string | null>(null);
@@ -147,6 +138,13 @@ const App: React.FC = () => {
       localStorage.removeItem('token');
       setToken(null);
       setUser(null);
+  };
+
+  const copyInviteLink = () => {
+    if (!user) return;
+    const link = `${window.location.origin}/?invite=${user.id}`;
+    navigator.clipboard.writeText(link);
+    alert(t('app.inviteCopied') || 'Invite link copied to clipboard!');
   };
 
   // --- Data Loading ---
@@ -330,27 +328,45 @@ const App: React.FC = () => {
   // --- Media Session API (Background Play) ---
   useEffect(() => {
     if ('mediaSession' in navigator && player.currentTrack) {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: player.currentTrack.title,
-        artist: player.currentTrack.artist,
-        album: t(`styles.${player.currentTrack.style}`),
-        artwork: [
-          { src: '/icon.svg', sizes: '96x96', type: 'image/svg+xml' },
-          { src: '/icon.svg', sizes: '512x512', type: 'image/svg+xml' },
-        ]
-      });
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: player.currentTrack.title || 'Unknown Title',
+          artist: player.currentTrack.artist || 'Unknown Artist',
+          album: t(`styles.${player.currentTrack.style}`) || 'Tempo',
+          artwork: [
+            { src: `${window.location.origin}/icon.svg`, sizes: '96x96', type: 'image/svg+xml' },
+            { src: `${window.location.origin}/icon.svg`, sizes: '512x512', type: 'image/svg+xml' },
+          ]
+        });
 
-      navigator.mediaSession.setActionHandler('play', async () => {
-        await initAudioCtx();
-        setPlayer(p => ({ ...p, isPlaying: true, isPauseCountdown: false }));
-      });
-      navigator.mediaSession.setActionHandler('pause', () => {
-        setPlayer(p => ({ ...p, isPlaying: false }));
-      });
-      navigator.mediaSession.setActionHandler('previoustrack', () => skip('prev'));
-      navigator.mediaSession.setActionHandler('nexttrack', () => skip('next'));
+        navigator.mediaSession.setActionHandler('play', async () => {
+          await initAudioCtx();
+          setPlayer(p => ({ ...p, isPlaying: true, isPauseCountdown: false }));
+        });
+        navigator.mediaSession.setActionHandler('pause', () => {
+          setPlayer(p => ({ ...p, isPlaying: false }));
+        });
+        navigator.mediaSession.setActionHandler('previoustrack', () => skip('prev'));
+        navigator.mediaSession.setActionHandler('nexttrack', () => skip('next'));
+      } catch (e) {
+        console.warn("Media Session API error:", e);
+      }
     }
   }, [player.currentTrack, togglePlay, skip, t, initAudioCtx]);
+
+  // --- Data Loading ---
+  useEffect(() => {
+    const headers: any = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    fetch('/api/tracks', { headers })
+      .then(res => res.json())
+      .then(data => {
+          if (Array.isArray(data)) setTracks(data);
+          else console.error("Invalid tracks data:", data);
+      })
+      .catch(console.error);
+  }, [token]);
 
   useEffect(() => {
     if (!audioRef.current || !player.currentTrack) return;
@@ -562,8 +578,18 @@ const App: React.FC = () => {
             <SettingsIcon />
             <span className="hidden md:inline font-bold text-sm tracking-tight">{t('app.settings')}</span>
           </button>
+
+          {user?.role === 'admin' && (
+            <button 
+              onClick={() => setShowUserManagement(true)}
+              className="flex items-center gap-2 p-2 md:px-3 md:py-1.5 rounded-full border border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 transition-all"
+            >
+              <ShieldCheckIcon />
+              <span className="hidden md:inline font-bold text-sm tracking-tight">{t('app.adminUsers')}</span>
+            </button>
+          )}
           
-          {user?.isAdmin && (
+          {(user?.role === 'admin' || user?.role === 'coach' || user?.isAdmin) && (
             <button onClick={() => setShowAdmin(true)} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full border border-white/10 transition text-sm">
               <PlusIcon /> <span className="hidden md:inline">{t('app.upload')}</span>
             </button>
@@ -587,7 +613,25 @@ const App: React.FC = () => {
           {playlists.map(pl => (
             <div key={pl.id} className="relative group">
               <button onClick={() => setActiveStyle(pl.id)} className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-full transition ${activeStyle === pl.id ? 'bg-indigo-500 text-white shadow-md' : 'bg-white/5 text-gray-400 border border-white/10'}`}><PlaylistIcon /> {pl.name}</button>
-              <button onClick={(e) => { e.stopPropagation(); setPlaylists(prev => prev.filter(p => p.id !== pl.id)); if (activeStyle === pl.id) setActiveStyle('All'); }} className="absolute -top-1 -right-1 bg-red-500 text-white p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow-lg scale-75"><TrashIcon /></button>
+              <button 
+                onClick={(e) => { 
+                    e.stopPropagation(); 
+                    if (token) {
+                        fetch(`/api/playlists/${pl.id}`, { 
+                            method: 'DELETE', 
+                            headers: { 'Authorization': `Bearer ${token}` } 
+                        })
+                        .then(() => {
+                            setPlaylists(prev => prev.filter(p => p.id !== pl.id)); 
+                            if (activeStyle === pl.id) setActiveStyle('All');
+                        })
+                        .catch(console.error);
+                    }
+                }} 
+                className="absolute -top-1 -right-1 bg-red-500 text-white p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow-lg scale-75"
+              >
+                <TrashIcon />
+              </button>
             </div>
           ))}
           <button onClick={() => user ? setShowPlaylistCreator(true) : setShowAuth(true)} className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-full bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 transition border-dashed"><PlusIcon /> {t('app.playlist')}</button>
@@ -805,6 +849,7 @@ const App: React.FC = () => {
         ref={audioRef}
         crossOrigin="anonymous"
         src={player.currentTrack?.url}
+        preload="metadata"
         onTimeUpdate={() => { if (audioRef.current) setPlayer(p => ({ ...p, currentTime: audioRef.current?.currentTime || 0, duration: audioRef.current?.duration || 0 })); }}
         onEnded={() => {
             if (player.isRepeat) {
@@ -980,6 +1025,27 @@ const App: React.FC = () => {
                   </button>
                 )}
               </div>
+
+              {/* Coach: Invite Student */}
+              {user?.role === 'coach' && (
+                <div className="p-6 bg-yellow-500/10 rounded-3xl border border-yellow-500/20 flex flex-col xs:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 w-full xs:w-auto text-left">
+                    <div className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-black text-xl shrink-0">
+                      👥
+                    </div>
+                    <div>
+                      <h4 className="text-white font-bold text-lg">{t('app.inviteTitle') || 'Invite Students'}</h4>
+                      <p className="text-xs text-gray-500">{t('app.inviteDesc') || 'Students register via your link'}</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={copyInviteLink}
+                    className="w-full xs:w-auto px-6 py-2.5 bg-yellow-500 text-black font-black rounded-xl text-xs uppercase tracking-widest hover:bg-yellow-400 transition whitespace-nowrap shadow-lg shadow-yellow-500/20"
+                  >
+                    {t('app.copyLink') || 'Copy Link'}
+                  </button>
+                </div>
+              )}
             </div>
             <button onClick={() => setShowSettings(false)} className="w-full mt-12 py-5 bg-white/5 text-white font-bold uppercase rounded-[1.5rem] hover:bg-white/10 transition-all border border-white/10">
               {t('pwa.close')}
@@ -1041,6 +1107,7 @@ const App: React.FC = () => {
       <div className={`fixed inset-0 bg-white z-40 pointer-events-none transition-opacity duration-200 ease-out ${showFlash ? 'opacity-20' : 'opacity-0'}`} />
       
       {showAdmin && <AdminPanel onAddTrack={handleAddTrack} onClose={() => setShowAdmin(false)} />}
+      {showUserManagement && <UserManagementModal onClose={() => setShowUserManagement(false)} />}
       {showAuth && <AuthModal onLogin={handleLogin} onClose={() => setShowAuth(false)} />}
       {playlistModalTrackId && (
         <AddToPlaylistModal 
@@ -1052,6 +1119,7 @@ const App: React.FC = () => {
       )}
       
       <UpdateNotification />
+      <ReloadPrompt />
 
       <ClapDetector 
         isEnabled={training.clapDetectionEnabled} 

@@ -12,6 +12,17 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin, onClose }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  const [verifySent, setVerifySent] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const invite = params.get('invite');
+    if (invite) {
+      setInviteCode(invite);
+      setIsLogin(false);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,17 +32,34 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin, onClose }) => {
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password, inviteCode })
       });
       
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Authentication failed');
       
-      onLogin(data.user, data.token);
+      if (!isLogin && !inviteCode && !email.includes('admin@trfnv.ru')) {
+          setVerifySent(true);
+      } else {
+          onLogin(data.user, data.token);
+      }
     } catch (error: any) {
       alert(error.message);
     }
   };
+
+  if (verifySent) {
+      return (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/95">
+          <div className="bg-[#1a1a1a] border border-white/10 p-8 rounded-[2rem] w-[90%] max-w-sm text-center">
+            <div className="w-16 h-16 bg-yellow-500/20 text-yellow-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">✉️</div>
+            <h2 className="text-2xl font-serif text-white mb-2">{t('auth.verifyTitle')}</h2>
+            <p className="text-gray-400 mb-6 text-sm">{t('auth.verifyDesc')}</p>
+            <button onClick={onClose} className="w-full py-3 bg-white/10 text-white font-bold rounded-xl hover:bg-white/20 transition">{t('auth.close')}</button>
+          </div>
+        </div>
+      )
+  }
 
   return (
     <div 
@@ -41,7 +69,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin, onClose }) => {
         className="bg-[#1a1a1a] border border-white/10 p-6 rounded-[2rem] w-[90%] max-w-sm shadow-2xl text-center"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-2xl font-serif text-white mb-2">{isLogin ? t('auth.welcomeBack') : t('auth.createAccount')}</h2>
+        <h2 className="text-2xl font-serif text-white mb-2">
+            {inviteCode ? t('auth.studentReg') : (isLogin ? t('auth.welcomeBack') : t('auth.createAccount'))}
+        </h2>
         <p className="text-gray-400 mb-6 text-xs">{isLogin ? t('auth.signInDesc') : t('auth.joinDesc')}</p>
         
         <form onSubmit={handleSubmit} className="space-y-4 text-left">

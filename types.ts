@@ -39,9 +39,12 @@ export interface TrainingSettings {
 }
 
 export interface User {
+  id: string;
   email: string;
   isSubscribed: boolean;
   isAdmin: boolean;
+  role: 'admin' | 'coach' | 'student';
+  coachId?: string | null;
   favorites: string[];
 }
 
