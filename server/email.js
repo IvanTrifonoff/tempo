@@ -1,6 +1,6 @@
 import nodemailer from 'nodemailer';
 
-const transporter = nodemailer.createTransport({
+export const transporter = nodemailer.createTransport({
   host: 'smtp.mail.ru',
   port: 465,
   secure: true,
@@ -11,10 +11,10 @@ const transporter = nodemailer.createTransport({
 });
 
 export async function sendVerificationEmail(email, token) {
-  // Определяем домен в зависимости от окружения (можно передавать через env, но пока хардкод для теста)
-  // В проде это будет tempo.trfnv.ru
   const domain = 'https://tempotest.trfnv.ru'; 
   const link = `${domain}/verify?token=${token}`;
+  
+  console.log(`Attempting to send email to ${email} via ${transporter.options.host}...`);
   
   try {
     const info = await transporter.sendMail({
@@ -35,10 +35,11 @@ export async function sendVerificationEmail(email, token) {
         </div>
       `
     });
-    console.log("Email sent to %s: %s", email, info.messageId);
+    console.log(`Email sent successfully to ${email}. MessageId: ${info.messageId}`);
     return true;
   } catch (error) {
-    console.error("Error sending email:", error);
+    console.error(`ERROR sending email to ${email}:`, error.message);
+    console.error("Full error stack:", error);
     return false;
   }
 }

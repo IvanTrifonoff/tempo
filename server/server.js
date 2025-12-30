@@ -6,6 +6,14 @@ import multer from 'multer';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import { sendVerificationEmail, transporter } from './email.js';
+
+// --- Verification of email config ---
+// (Normally we'd import the transporter, but since it's inside email.js, 
+// we'll just rely on the logs from sendVerificationEmail or export it)
+
+
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -340,4 +348,13 @@ app.listen(PORT, '0.0.0.0', async () => {
   console.log(`Server is running on port ${PORT}`);
   // Run migration on start
   await getDb();
+
+  // Verify SMTP
+  transporter.verify((error, success) => {
+    if (error) {
+      console.error("SMTP Connection Error:", error);
+    } else {
+      console.log("SMTP Server is ready to take our messages");
+    }
+  });
 });
