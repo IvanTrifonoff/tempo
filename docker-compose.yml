@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: tempo-app
+    restart: always
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - PORT=3000
+      - DATABASE_URL=postgres://tempo:tempo_secure_password@mautrix-telegram-db-1:5432/tempo
+      - JWT_SECRET=${JWT_SECRET}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+    volumes:
+      - tempo-uploads:/app/server/uploads
+    networks:
+      - default
+      - db_net
+
+volumes:
+  tempo-uploads:
+    external: true
+
+networks:
+  db_net:
+    external: true
+    name: mautrix-telegram_default

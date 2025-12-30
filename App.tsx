@@ -5,7 +5,7 @@ import {
   PlayIcon, PauseIcon, SkipForward, SkipBack, SettingsIcon, 
   PlusIcon, UserIcon, HeartIcon, PlaylistIcon, 
   MetronomeIcon, TrashIcon, RepeatIcon, ShuffleIcon, WhistleIcon,
-  ShieldCheckIcon
+  ShieldCheckIcon, PencilIcon
 } from './components/Icons';
 import { STYLE_COLORS, APP_VERSION } from './constants';
 import AdminPanel from './components/AdminPanel';
@@ -14,6 +14,7 @@ import AddToPlaylistModal from './components/AddToPlaylistModal';
 import UserManagementModal from './components/UserManagementModal';
 import ClapDetector from './components/ClapDetector';
 import ReloadPrompt from './components/ReloadPrompt';
+import EditTrackModal from './components/EditTrackModal';
 
 import UpdateNotification from './components/UpdateNotification';
 
@@ -33,9 +34,9 @@ const App: React.FC = () => {
   const [showUserManagement, setShowUserManagement] = useState(false);
   const [showPlaylistCreator, setShowPlaylistCreator] = useState(false);
   const [showTrainingPanel, setShowTrainingPanel] = useState(false);
-  const [editingBpmId, setEditingBpmId] = useState<string | null>(null);
-  const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
-  const [editingArtistId, setEditingArtistId] = useState<string | null>(null);
+  
+  const [trackToEdit, setTrackToEdit] = useState<Track | null>(null);
+
   const [isPlayerVisible, setIsPlayerVisible] = useState(true);
   const [playlistModalTrackId, setPlaylistModalTrackId] = useState<string | null>(null);
   const [micLevel, setMicLevel] = useState(0);
@@ -253,19 +254,29 @@ const App: React.FC = () => {
   const playMetronomeTick = useCallback(async () => {
     const ctx = await initAudioCtx();
     if (!ctx || ctx.state !== 'running') return;
+    
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
+    
     osc.connect(gain);
     gain.connect(ctx.destination);
+    
     const now = ctx.currentTime;
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(1200, now);
-    osc.frequency.exponentialRampToValueAtTime(40, now + 0.05);
+    
+    // Woodblock-like sound
+    osc.type = 'sine';
+    // Start slightly high and drop pitch quickly for percussive effect
+    osc.frequency.setValueAtTime(800, now);
+    osc.frequency.exponentialRampToValueAtTime(400, now + 0.02);
+    
+    // Short, sharp envelope
     gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(training.metronomeVolume, now + 0.002);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+    gain.gain.linearRampToValueAtTime(training.metronomeVolume, now + 0.002); // Fast attack
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05); // Fast decay
+    
     osc.start(now);
-    osc.stop(now + 0.08);
+    osc.stop(now + 0.06);
+    
     setIsMetronomeVisualActive(true);
     setTimeout(() => setIsMetronomeVisualActive(false), 50);
   }, [initAudioCtx, training.metronomeVolume]);
@@ -459,26 +470,19 @@ const App: React.FC = () => {
     } catch (err) { console.error(err); }
   };
 
-  const updateTrackMetadata = async (trackId: string, field: 'title' | 'artist' | 'bpm', value: string | number) => {
+  const handleSaveTrack = async (trackId: string, data: Partial<Track>) => {
       if (!token) return;
-      setEditingBpmId(null);
-      setEditingTitleId(null);
-      setEditingArtistId(null);
       
       // Optimistic update
-      setTracks(prev => prev.map(t => t.id === trackId ? { ...t, [field]: value } : t));
+      setTracks(prev => prev.map(t => t.id === trackId ? { ...t, ...data } : t));
 
       try {
           await fetch(`/api/tracks/${trackId}`, {
               method: 'PATCH',
               headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-              body: JSON.stringify({ [field]: value })
+              body: JSON.stringify(data)
           });
       } catch (e) { console.error(e); }
-  };
-
-  const updateTrackBpm = (trackId: string, newBpm: number) => {
-      updateTrackMetadata(trackId, 'bpm', newBpm);
   };
 
   const deleteTrack = (trackId: string) => {
@@ -660,75 +664,30 @@ const App: React.FC = () => {
                      <button onClick={(e) => { e.stopPropagation(); if(user) setPlaylistModalTrackId(track.id); else setShowAuth(true); }} className="text-gray-600 hover:text-indigo-400 transition-transform hover:scale-110 p-1"><PlusIcon /></button>
                      <button onClick={(e) => { e.stopPropagation(); toggleFavorite(track.id); }} className={`transition-transform hover:scale-110 p-1 ${user?.favorites.includes(track.id) ? 'text-rose-500' : 'text-gray-600 hover:text-rose-400'}`}><HeartIcon filled={user?.favorites.includes(track.id)} /></button>
                     <div className="flex items-center gap-1 bg-black/30 px-2 py-0.5 rounded-md" onClick={e => e.stopPropagation()}>
-                      {editingBpmId === track.id ? (
-                        <input 
-                          type="number" 
-                          autoFocus
-                          defaultValue={track.bpm}
-                          className="w-12 bg-transparent text-yellow-500 text-sm font-mono outline-none border-b border-yellow-500"
-                          onBlur={e => updateTrackBpm(track.id, Number(e.target.value))}
-                          onKeyDown={e => e.key === 'Enter' && updateTrackBpm(track.id, Number((e.target as HTMLInputElement).value))}
-                        />
-                      ) : (
-                        <div className="flex items-center gap-1">
-                          <span className="text-gray-300 text-sm font-mono">{track.bpm} BPM</span>
-                          {user?.isAdmin && (
-                            <button onClick={() => setEditingBpmId(track.id)} className="text-gray-600 hover:text-yellow-500 transition">
-                              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-                            </button>
-                          )}
-                        </div>
-                      )}
+                      <span className="text-gray-300 text-sm font-mono">{track.bpm} BPM</span>
                     </div>
                   </div>
                 </div>
                 <div className="flex justify-between items-end">
-                  <div className="min-w-0 pr-2 flex-1">
-                    {editingTitleId === track.id ? (
-                       <input 
-                          autoFocus 
-                          defaultValue={track.title} 
-                          className="w-full bg-transparent text-yellow-500 text-base font-bold outline-none border-b border-yellow-500 mb-0.5"
-                          onBlur={e => updateTrackMetadata(track.id, 'title', e.target.value)}
-                          onKeyDown={e => e.key === 'Enter' && updateTrackMetadata(track.id, 'title', (e.target as HTMLInputElement).value)}
-                          onClick={e => e.stopPropagation()}
-                       />
-                    ) : (
-                       <div className="flex items-center gap-2">
-                          <h3 className="text-base font-bold text-white mb-0.5 group-hover:text-yellow-500 transition truncate leading-tight">{track.title}</h3>
-                          {user?.isAdmin && (
-                             <button onClick={(e) => { e.stopPropagation(); setEditingTitleId(track.id); }} className="text-gray-600 hover:text-yellow-500 transition shrink-0">
-                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-                             </button>
-                          )}
-                       </div>
-                    )}
-
-                    {editingArtistId === track.id ? (
-                       <input 
-                          autoFocus 
-                          defaultValue={track.artist} 
-                          className="w-full bg-transparent text-gray-400 text-sm outline-none border-b border-gray-500"
-                          onBlur={e => updateTrackMetadata(track.id, 'artist', e.target.value)}
-                          onKeyDown={e => e.key === 'Enter' && updateTrackMetadata(track.id, 'artist', (e.target as HTMLInputElement).value)}
-                          onClick={e => e.stopPropagation()}
-                       />
-                    ) : (
-                       <div className="flex items-center gap-2">
-                          <p className="text-gray-400 text-sm truncate">{track.artist}</p>
-                          {user?.isAdmin && (
-                             <button onClick={(e) => { e.stopPropagation(); setEditingArtistId(track.id); }} className="text-gray-600 hover:text-white transition shrink-0">
-                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
-                             </button>
-                          )}
-                       </div>
-                    )}
+                  <div className="min-w-0 pr-8 flex-1">
+                    <h3 className="text-base font-bold text-white mb-0.5 group-hover:text-yellow-500 transition truncate leading-tight">{track.title}</h3>
+                    <p className="text-gray-400 text-sm truncate">{track.artist}</p>
                   </div>
                   {isThisCurrent && training.metronomeEnabled && (
                     <div className={`w-2 h-2 rounded-full transition-all duration-75 flex-shrink-0 ${isMetronomeVisualActive ? 'bg-yellow-500 scale-150 shadow-[0_0_10px_#eab308]' : 'bg-yellow-500/20'}`}></div>
                   )}
                 </div>
                 
+                {/* Edit Button */}
+                {(user?.isAdmin || user?.id === track.ownerId) && (
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); setTrackToEdit(track); }}
+                        className="absolute bottom-2 right-2 p-1.5 bg-black/60 hover:bg-yellow-500 text-gray-400 hover:text-black rounded-lg transition-all backdrop-blur-sm opacity-0 group-hover:opacity-100 z-10"
+                    >
+                        <PencilIcon />
+                    </button>
+                )}
+
                 {/* Play/Pause Overlay Icon */}
                 <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 pointer-events-none 
                   ${isThisCurrent && player.isPlaying 
@@ -1115,6 +1074,13 @@ const App: React.FC = () => {
             trackId={playlistModalTrackId} 
             onClose={() => setPlaylistModalTrackId(null)} 
             onToggle={toggleTrackInPlaylist}
+        />
+      )}
+      {trackToEdit && (
+        <EditTrackModal
+          track={trackToEdit}
+          onClose={() => setTrackToEdit(null)}
+          onSave={handleSaveTrack}
         />
       )}
       

@@ -1,5 +1,4 @@
 import express from 'express';
-import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import multer from 'multer';
@@ -7,69 +6,31 @@ import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import pg from 'pg';
+import dotenv from 'dotenv';
 import { sendVerificationEmail, transporter } from './email.js';
+
+dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DATA_DIR = path.join(__dirname, 'data');
-const DB_PATH = path.join(DATA_DIR, 'db.json');
 const UPLOADS_PATH = path.join(__dirname, 'uploads');
-const JWT_SECRET = 'trfnv-tempo-secret-key-change-this-in-prod'; 
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
-// Ensure data directory exists
-fs.mkdir(DATA_DIR, { recursive: true }).catch(console.error);
+// DB Pool
+const pool = new pg.Pool({
+  connectionString: process.env.DATABASE_URL,
+});
 
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(UPLOADS_PATH));
 app.use(express.static(path.join(__dirname, '../dist')));
 
-async function getDb() {
-  try {
-    const data = await fs.readFile(DB_PATH, 'utf-8');
-    const db = JSON.parse(data);
-    
-    // Migration: Assign roles to legacy users
-    let changed = false;
-    if (db.users) {
-        db.users = db.users.map(u => {
-            if (!u.role) {
-                u.role = u.isAdmin ? 'admin' : 'coach';
-                u.isVerified = true;
-                changed = true;
-            }
-            return u;
-        });
-    }
-    
-    // Migration: Assign ownerId/isPublic to legacy tracks
-    if (db.tracks) {
-        const adminUser = db.users?.find(u => u.role === 'admin');
-        db.tracks = db.tracks.map(t => {
-            if (!t.ownerId && adminUser) {
-                t.ownerId = adminUser.id;
-                t.isPublic = true;
-                changed = true;
-            }
-            return t;
-        });
-    }
-
-    if (changed) await saveDb(db);
-    return db;
-  } catch (error) {
-    return { tracks: [], playlists: [], users: [] };
-  }
-}
-
-async function saveDb(data) {
-  await fs.writeFile(DB_PATH, JSON.stringify(data, null, 2));
-}
-
-// Middleware: Authenticate Token
+// Middleware
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -93,11 +54,10 @@ const storage = multer.diskStorage({
 })
 const upload = multer({ storage: storage });
 
-// API Routes
+// Routes
 
 app.get('/api/tracks', async (req, res) => {
   try {
-    const db = await getDb();
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
     let user = null;
@@ -106,20 +66,46 @@ app.get('/api/tracks', async (req, res) => {
         try { user = jwt.verify(token, JWT_SECRET); } catch(e) {}
     }
 
-    let filteredTracks = [];
-    if (!user) {
-        filteredTracks = db.tracks.filter(t => t.isPublic);
-    } else if (user.role === 'admin') {
-        filteredTracks = db.tracks;
-    } else if (user.role === 'coach') {
-        filteredTracks = db.tracks.filter(t => t.isPublic || t.ownerId === user.id);
-    } else if (user.role === 'student') {
-        filteredTracks = db.tracks.filter(t => t.isPublic || t.ownerId === user.coachId);
-    } else {
-        filteredTracks = db.tracks.filter(t => t.isPublic);
+    let query = 'SELECT * FROM tracks WHERE is_public = true';
+    let params = [];
+
+    if (user) {
+        if (user.role === 'admin') {
+            query = 'SELECT * FROM tracks ORDER BY created_at DESC';
+        } else if (user.role === 'coach') {
+            query = 'SELECT * FROM tracks WHERE is_public = true OR owner_id = $1 ORDER BY created_at DESC';
+            params = [user.id];
+        } else if (user.role === 'student') {
+            // Need coachId. It's in the token, but let's be safe
+            // If coachId is in token:
+            const coachId = user.coachId; 
+            if (coachId) {
+                query = 'SELECT * FROM tracks WHERE is_public = true OR owner_id = $1 ORDER BY created_at DESC';
+                params = [coachId];
+            } else {
+                 query = 'SELECT * FROM tracks WHERE is_public = true ORDER BY created_at DESC';
+            }
+        }
     }
-    res.json(filteredTracks);
+
+    const { rows } = await pool.query(query, params);
+    
+    // Map snake_case to camelCase for frontend compatibility
+    const tracks = rows.map(row => ({
+        id: row.id,
+        title: row.title,
+        artist: row.artist,
+        style: row.style,
+        bpm: row.bpm,
+        url: row.url,
+        ownerId: row.owner_id,
+        isPublic: row.is_public,
+        isPreloaded: row.is_preloaded
+    }));
+    
+    res.json(tracks);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -127,27 +113,32 @@ app.get('/api/tracks', async (req, res) => {
 app.post('/api/tracks', authenticateToken, upload.single('file'), async (req, res) => {
   if (req.user.role === 'student') return res.status(403).json({ error: 'Students cannot upload' });
   try {
-    const db = await getDb();
     const { title, artist, style, bpm } = req.body;
     let url = '';
     if (req.file) url = `/uploads/${req.file.filename}`;
     else if (req.body.url) url = req.body.url;
 
-    const newTrack = {
-      id: Date.now().toString(),
-      title,
-      artist,
-      style,
-      bpm: Number(bpm),
-      url,
-      isPreloaded: false,
-      ownerId: req.user.id,
-      isPublic: req.user.role === 'admin'
-    };
+    const newTrackId = Date.now().toString(); // Use string ID for compatibility
+    const ownerId = req.user.id;
+    const isPublic = req.user.role === 'admin';
 
-    db.tracks.unshift(newTrack);
-    await saveDb(db);
-    res.json(newTrack);
+    await pool.query(
+        `INSERT INTO tracks (id, title, artist, style, bpm, url, owner_id, is_public)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [newTrackId, title, artist, style, Number(bpm), url, ownerId, isPublic]
+    );
+
+    res.json({
+        id: newTrackId,
+        title,
+        artist,
+        style,
+        bpm: Number(bpm),
+        url,
+        ownerId,
+        isPublic,
+        isPreloaded: false
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -155,23 +146,23 @@ app.post('/api/tracks', authenticateToken, upload.single('file'), async (req, re
 
 app.delete('/api/tracks/:id', authenticateToken, async (req, res) => {
     try {
-        const db = await getDb();
-        const trackIndex = db.tracks.findIndex(t => t.id === req.params.id);
-        if (trackIndex === -1) return res.status(404).json({error: 'Track not found'});
-        const track = db.tracks[trackIndex];
-        
-        if (req.user.role !== 'admin' && track.ownerId !== req.user.id) {
+        const { rows } = await pool.query('SELECT * FROM tracks WHERE id = $1', [req.params.id]);
+        if (rows.length === 0) return res.status(404).json({error: 'Track not found'});
+        const track = rows[0];
+
+        if (req.user.role !== 'admin' && track.owner_id !== req.user.id) {
             return res.status(403).json({ error: 'Denied' });
         }
 
         if (track.url && track.url.startsWith('/uploads/')) {
+             // Try deleting file, but don't crash if fails
              try {
                  const fileName = path.basename(track.url);
-                 await fs.unlink(path.join(UPLOADS_PATH, fileName));
+                 await fs.promises.unlink(path.join(UPLOADS_PATH, fileName));
             } catch (e) {}
         }
-        db.tracks.splice(trackIndex, 1);
-        await saveDb(db);
+        
+        await pool.query('DELETE FROM tracks WHERE id = $1', [req.params.id]);
         res.json({success: true});
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -180,20 +171,42 @@ app.delete('/api/tracks/:id', authenticateToken, async (req, res) => {
 
 app.patch('/api/tracks/:id', authenticateToken, async (req, res) => {
     try {
-        const db = await getDb();
-        const track = db.tracks.find(t => t.id === req.params.id);
-        if (!track) return res.status(404).json({error: 'Not found'});
+        const { rows } = await pool.query('SELECT * FROM tracks WHERE id = $1', [req.params.id]);
+        if (rows.length === 0) return res.status(404).json({error: 'Not found'});
+        const track = rows[0];
         
-        if (req.user.role !== 'admin' && track.ownerId !== req.user.id) {
+        if (req.user.role !== 'admin' && track.owner_id !== req.user.id) {
             return res.status(403).json({ error: 'Denied' });
         }
+
+        const updates = [];
+        const values = [];
+        let idx = 1;
+
+        if (req.body.title) { updates.push(`title = $${idx++}`); values.push(req.body.title); }
+        if (req.body.artist) { updates.push(`artist = $${idx++}`); values.push(req.body.artist); }
+        if (req.body.bpm) { updates.push(`bpm = $${idx++}`); values.push(Number(req.body.bpm)); }
         
-        if (req.body.title) track.title = req.body.title;
-        if (req.body.artist) track.artist = req.body.artist;
-        if (req.body.bpm) track.bpm = Number(req.body.bpm);
-        
-        await saveDb(db);
-        res.json(track);
+        if (updates.length > 0) {
+            values.push(req.params.id);
+            const { rows: updatedRows } = await pool.query(
+                `UPDATE tracks SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`,
+                values
+            );
+            const updated = updatedRows[0];
+             res.json({
+                id: updated.id,
+                title: updated.title,
+                artist: updated.artist,
+                style: updated.style,
+                bpm: updated.bpm,
+                url: updated.url,
+                ownerId: updated.owner_id,
+                isPublic: updated.is_public
+            });
+        } else {
+            res.json(track);
+        }
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -203,20 +216,26 @@ app.patch('/api/tracks/:id', authenticateToken, async (req, res) => {
 app.get('/api/admin/users', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Denied' });
     try {
-        const db = await getDb();
-        res.json(db.users.map(({ password, verificationToken, ...u }) => u));
+        const { rows } = await pool.query('SELECT * FROM users');
+        res.json(rows.map(u => ({
+            id: u.id,
+            email: u.email,
+            role: u.role,
+            coachId: u.coach_id,
+            isVerified: u.is_verified,
+            // favorites ignored here as per original
+        })));
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.delete('/api/admin/users/:id', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Denied' });
     try {
-        const db = await getDb();
-        const index = db.users.findIndex(u => u.id === req.params.id);
-        if (index === -1) return res.status(404).json({ error: 'Not found' });
-        if (db.users[index].email === 'admin@trfnv.ru') return res.status(403).json({ error: 'Denied' });
-        db.users.splice(index, 1);
-        await saveDb(db);
+        const { rows } = await pool.query('SELECT email FROM users WHERE id = $1', [req.params.id]);
+        if (rows.length === 0) return res.status(404).json({ error: 'Not found' });
+        if (rows[0].email === 'admin@trfnv.ru') return res.status(403).json({ error: 'Denied' });
+        
+        await pool.query('DELETE FROM users WHERE id = $1', [req.params.id]);
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -224,25 +243,53 @@ app.delete('/api/admin/users/:id', authenticateToken, async (req, res) => {
 app.patch('/api/admin/users/:id', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') return res.status(403).json({ error: 'Denied' });
     try {
-        const db = await getDb();
-        const user = db.users.find(u => u.id === req.params.id);
-        if (!user) return res.status(404).json({ error: 'Not found' });
-        if (req.body.role) user.role = req.body.role;
-        if (req.body.isVerified !== undefined) user.isVerified = req.body.isVerified;
-        await saveDb(db);
-        res.json(user);
+        const updates = [];
+        const values = [];
+        let idx = 1;
+
+        if (req.body.role) { updates.push(`role = $${idx++}`); values.push(req.body.role); }
+        if (req.body.isVerified !== undefined) { updates.push(`is_verified = $${idx++}`); values.push(req.body.isVerified); }
+
+        if (updates.length === 0) return res.json({});
+
+        values.push(req.params.id);
+        const { rows } = await pool.query(
+            `UPDATE users SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`,
+            values
+        );
+        
+        if (rows.length === 0) return res.status(404).json({ error: 'Not found' });
+        
+        const u = rows[0];
+        res.json({
+            id: u.id,
+            email: u.email,
+            role: u.role,
+            coachId: u.coach_id,
+            isVerified: u.is_verified
+        });
     } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Helper to format user object for frontend
+const mapUser = (user, favorites = []) => ({
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    coachId: user.coach_id,
+    isVerified: user.is_verified,
+    isAdmin: user.role === 'admin', // Restore legacy field for frontend checks
+    favorites
 });
 
 // AUTH
 app.post('/api/auth/register', async (req, res) => {
     try {
         const { email, password, inviteCode } = req.body;
-        console.log(`Registration: ${email}, invite: ${inviteCode}`);
         if (!email || !password) return res.status(400).json({ error: 'Required fields missing' });
         
-        const db = await getDb();
-        if (db.users.find(u => u.email === email)) return res.status(400).json({ error: 'User exists' });
+        const userCheck = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+        if (userCheck.rows.length > 0) return res.status(400).json({ error: 'User exists' });
 
         const hashedPassword = await bcrypt.hash(password, 10);
         let role = 'coach';
@@ -254,52 +301,57 @@ app.post('/api/auth/register', async (req, res) => {
              role = 'admin';
              isVerified = true;
         } else if (inviteCode) {
-            const coach = db.users.find(u => u.id === inviteCode && u.role === 'coach');
-            if (coach) {
+            const coachCheck = await pool.query("SELECT id FROM users WHERE id = $1 AND role = 'coach'", [inviteCode]);
+            if (coachCheck.rows.length > 0) {
                 role = 'student';
-                coachId = coach.id;
+                coachId = inviteCode;
                 isVerified = true;
             } else return res.status(400).json({ error: 'Invalid invite' });
         }
 
-        const newUser = {
-            id: Date.now().toString(),
-            email,
-            password: hashedPassword,
-            role,
-            coachId,
-            isVerified,
-            verificationToken: isVerified ? null : verificationToken,
-            favorites: []
-        };
+        const newId = Date.now().toString();
+        const newUser = await pool.query(
+            `INSERT INTO users (id, email, password, role, coach_id, is_verified, verification_token)
+             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+            [newId, email, hashedPassword, role, coachId, isVerified, isVerified ? null : verificationToken]
+        );
         
-        db.users.push(newUser);
-        await saveDb(db);
-        
+        const u = newUser.rows[0];
+
         if (!isVerified) {
             await sendVerificationEmail(email, verificationToken);
             return res.json({ message: 'Email sent' });
         }
         
-        const token = jwt.sign({ id: newUser.id, email: newUser.email, role: newUser.role, coachId: newUser.coachId }, JWT_SECRET);
-        const { password: _, verificationToken: __, ...u } = newUser;
-        res.json({ user: u, token });
+        const token = jwt.sign({ id: u.id, email: u.email, role: u.role, coachId: u.coach_id }, JWT_SECRET);
+        res.json({ 
+            user: mapUser(u, []), 
+            token 
+        });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/auth/login', async (req, res) => {
     try {
         const { email, password } = req.body;
-        const db = await getDb();
-        const user = db.users.find(u => u.email === email);
+        const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+        const user = rows[0];
+
         if (!user || !(await bcrypt.compare(password, user.password))) {
             return res.status(400).json({ error: 'Invalid credentials' });
         }
-        if (!user.isVerified) return res.status(403).json({ error: 'Verify email' });
+        if (!user.is_verified) return res.status(403).json({ error: 'Verify email' });
 
-        const token = jwt.sign({ id: user.id, email: user.email, role: user.role, coachId: user.coachId }, JWT_SECRET);
-        const { password: _, verificationToken: __, ...u } = user;
-        res.json({ user: u, token });
+        const token = jwt.sign({ id: user.id, email: user.email, role: user.role, coachId: user.coach_id }, JWT_SECRET);
+        
+        // Load favorites
+        const favsRes = await pool.query('SELECT track_id FROM user_favorites WHERE user_id = $1', [user.id]);
+        const favorites = favsRes.rows.map(r => r.track_id);
+
+        res.json({ 
+            user: mapUser(user, favorites), 
+            token 
+        });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -308,19 +360,16 @@ app.get('/verify', async (req, res) => {
         const { token } = req.query;
         if (!token) return res.status(400).send('Token is required');
         
-        const db = await getDb();
-        const user = db.users.find(u => u.verificationToken === token);
+        const { rows } = await pool.query(
+            `UPDATE users SET is_verified = true, verification_token = null 
+             WHERE verification_token = $1 RETURNING *`,
+            [token]
+        );
         
-        if (!user) {
-            console.log(`Verification failed for token: ${token}`);
-            return res.status(400).send('<h1>Invalid or expired token.</h1><p>Please try registering again or contact support.</p>');
+        if (rows.length === 0) {
+            return res.status(400).send('<h1>Invalid or expired token.</h1>');
         }
         
-        user.isVerified = true;
-        user.verificationToken = null;
-        await saveDb(db);
-        
-        console.log(`User verified: ${user.email}`);
         res.send(`
             <div style="font-family: sans-serif; text-align: center; padding: 50px; background: #0a0a0a; color: white; height: 100vh;">
                 <h1 style="color: #eab308;">Email Verified!</h1>
@@ -329,42 +378,80 @@ app.get('/verify', async (req, res) => {
                 <a href="/" style="background: #eab308; color: black; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Go to Tempo</a>
             </div>
         `);
-    } catch (err) { 
-        console.error("Verify error:", err);
-        res.status(500).send(err.message); 
-    }
+    } catch (err) { res.status(500).send(err.message); }
+});
+
+// CHANGELOG
+app.get('/api/changelog/latest', async (req, res) => {
+    try {
+        const { rows } = await pool.query('SELECT * FROM changelogs ORDER BY release_date DESC LIMIT 1');
+        if (rows.length > 0) {
+            res.json(rows[0]);
+        } else {
+            res.json(null);
+        }
+    } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // User API
 app.post('/api/user/favorites', authenticateToken, async (req, res) => {
     try {
         const { trackId } = req.body;
-        const db = await getDb();
-        const user = db.users.find(u => u.id === req.user.id);
-        if (!user) return res.status(404).json({error: 'User not found'});
-        if (user.favorites.includes(trackId)) user.favorites = user.favorites.filter(id => id !== trackId);
-        else user.favorites.push(trackId);
-        await saveDb(db);
-        res.json(user.favorites);
+        const userId = req.user.id;
+        
+        // Check if exists
+        const check = await pool.query('SELECT 1 FROM user_favorites WHERE user_id = $1 AND track_id = $2', [userId, trackId]);
+        
+        if (check.rows.length > 0) {
+            await pool.query('DELETE FROM user_favorites WHERE user_id = $1 AND track_id = $2', [userId, trackId]);
+        } else {
+            await pool.query('INSERT INTO user_favorites (user_id, track_id) VALUES ($1, $2)', [userId, trackId]);
+        }
+
+        const favsRes = await pool.query('SELECT track_id FROM user_favorites WHERE user_id = $1', [userId]);
+        res.json(favsRes.rows.map(r => r.track_id));
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.get('/api/auth/me', authenticateToken, async (req, res) => {
     try {
-        const db = await getDb();
-        const user = db.users.find(u => u.id === req.user.id);
-        if (!user) return res.sendStatus(404);
-        const { password: _, verificationToken: __, ...u } = user;
-        res.json(u);
+        const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [req.user.id]);
+        if (rows.length === 0) return res.sendStatus(404);
+        const user = rows[0];
+        
+        const favsRes = await pool.query('SELECT track_id FROM user_favorites WHERE user_id = $1', [user.id]);
+        const favorites = favsRes.rows.map(r => r.track_id);
+
+        res.json(mapUser(user, favorites));
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.get('/api/playlists', authenticateToken, async (req, res) => {
     try {
-        const db = await getDb();
         const { id, role, coachId } = req.user;
-        const list = db.playlists.filter(p => p.userId === (role === 'student' ? coachId : id));
-        res.json(list);
+        const targetUserId = role === 'student' ? coachId : id;
+        
+        if (!targetUserId) return res.json([]);
+
+        const { rows: playlists } = await pool.query(
+            'SELECT * FROM playlists WHERE user_id = $1 ORDER BY created_at DESC', 
+            [targetUserId]
+        );
+
+        // Populate trackIds
+        for (const pl of playlists) {
+            const tRes = await pool.query(
+                'SELECT track_id FROM playlist_tracks WHERE playlist_id = $1 ORDER BY added_at ASC',
+                [pl.id]
+            );
+            pl.trackIds = tRes.rows.map(r => r.track_id);
+            // Map snake_case to camelCase
+            pl.userId = pl.user_id;
+            delete pl.user_id;
+            delete pl.created_at;
+        }
+
+        res.json(playlists);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -372,21 +459,22 @@ app.post('/api/playlists', authenticateToken, async (req, res) => {
      if (req.user.role === 'student') return res.status(403).json({ error: 'Denied' });
      try {
         const { name } = req.body;
-        const db = await getDb();
-        const pl = { id: Date.now().toString(), userId: req.user.id, name, trackIds: [] };
-        db.playlists.push(pl);
-        await saveDb(db);
-        res.json(pl);
+        const newId = Date.now().toString();
+        await pool.query(
+            'INSERT INTO playlists (id, user_id, name) VALUES ($1, $2, $3)',
+            [newId, req.user.id, name]
+        );
+        res.json({ id: newId, userId: req.user.id, name, trackIds: [] });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.delete('/api/playlists/:id', authenticateToken, async (req, res) => {
      try {
-        const db = await getDb();
-        const idx = db.playlists.findIndex(p => p.id === req.params.id && p.userId === req.user.id);
-        if (idx === -1) return res.status(404).json({error: 'Not found'});
-        db.playlists.splice(idx, 1);
-        await saveDb(db);
+        const { rowCount } = await pool.query(
+            'DELETE FROM playlists WHERE id = $1 AND user_id = $2',
+            [req.params.id, req.user.id]
+        );
+        if (rowCount === 0) return res.status(404).json({error: 'Not found'});
         res.json({success: true});
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -394,25 +482,53 @@ app.delete('/api/playlists/:id', authenticateToken, async (req, res) => {
 app.post('/api/playlists/:id/tracks', authenticateToken, async (req, res) => {
     try {
         const { trackId } = req.body;
-        const db = await getDb();
-        const pl = db.playlists.find(p => p.id === req.params.id && p.userId === req.user.id);
-        if (!pl) return res.status(404).json({ error: 'Not found' });
-        if (!pl.trackIds.includes(trackId)) {
-            pl.trackIds.push(trackId);
-            await saveDb(db);
-        }
-        res.json(pl);
+        // Check ownership
+        const plCheck = await pool.query('SELECT * FROM playlists WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+        if (plCheck.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+        
+        await pool.query(
+            'INSERT INTO playlist_tracks (playlist_id, track_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [req.params.id, trackId]
+        );
+        
+        // Return updated playlist object
+        const pl = plCheck.rows[0];
+        const tRes = await pool.query(
+            'SELECT track_id FROM playlist_tracks WHERE playlist_id = $1 ORDER BY added_at ASC',
+            [pl.id]
+        );
+        
+        res.json({
+            id: pl.id,
+            userId: pl.user_id,
+            name: pl.name,
+            trackIds: tRes.rows.map(r => r.track_id)
+        });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.delete('/api/playlists/:id/tracks/:trackId', authenticateToken, async (req, res) => {
     try {
-        const db = await getDb();
-        const pl = db.playlists.find(p => p.id === req.params.id && p.userId === req.user.id);
-        if (!pl) return res.status(404).json({ error: 'Not found' });
-        pl.trackIds = pl.trackIds.filter(id => id !== req.params.trackId);
-        await saveDb(db);
-        res.json(pl);
+        const plCheck = await pool.query('SELECT * FROM playlists WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+        if (plCheck.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+
+        await pool.query(
+            'DELETE FROM playlist_tracks WHERE playlist_id = $1 AND track_id = $2',
+            [req.params.id, req.params.trackId]
+        );
+
+        const pl = plCheck.rows[0];
+        const tRes = await pool.query(
+            'SELECT track_id FROM playlist_tracks WHERE playlist_id = $1 ORDER BY added_at ASC',
+            [pl.id]
+        );
+        
+        res.json({
+            id: pl.id,
+            userId: pl.user_id,
+            name: pl.name,
+            trackIds: tRes.rows.map(r => r.track_id)
+        });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -420,11 +536,16 @@ app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
-app.listen(PORT, '0.0.0.0', async () => {
-  console.log(`Server is running on port ${PORT}`);
-  await getDb();
-  transporter.verify((error) => {
-    if (error) console.error("SMTP Error:", error);
-    else console.log("SMTP Ready");
-  });
-});
+// Export for testing
+export { app, pool };
+
+// Only listen if not in test mode
+if (process.env.NODE_ENV !== 'test') {
+    app.listen(PORT, '0.0.0.0', async () => {
+      console.log(`Server is running on port ${PORT}`);
+      transporter.verify((error) => {
+        if (error) console.error("SMTP Error:", error);
+        else console.log("SMTP Ready");
+      });
+    });
+}

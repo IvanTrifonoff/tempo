@@ -14,7 +14,7 @@ body {
 }
 
 input[type="range"] {
-  accent-color: #d4af37;
+  accent-color: #eab308;
 }
 
 ::-webkit-scrollbar {
@@ -26,6 +26,6 @@ input[type="range"] {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #d4af37;
+  background: #eab308;
   border-radius: 10px;
 }

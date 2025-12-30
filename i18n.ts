@@ -109,6 +109,15 @@ const resources = {
         title: "Update Installed",
         desc: "We've improved text input in login screens. Keyboard issues are resolved.",
         action: "Awesome!"
+      },
+      edit: {
+        title: "Edit Track",
+        trackTitle: "Title",
+        artist: "Artist",
+        bpm: "BPM",
+        style: "Style",
+        save: "Save",
+        cancel: "Cancel"
       }
     }
   },
@@ -218,6 +227,15 @@ const resources = {
         title: "Обновление установлено",
         desc: "Мы исправили ввод текста при входе. Проблемы с клавиатурой решены.",
         action: "Отлично!"
+      },
+      edit: {
+        title: "Редактировать трек",
+        trackTitle: "Название",
+        artist: "Исполнитель",
+        bpm: "BPM",
+        style: "Стиль",
+        save: "Сохранить",
+        cancel: "Отмена"
       }
     }
   },
@@ -327,6 +345,15 @@ const resources = {
         title: "Actualización instalada",
         desc: "Hemos arreglado la entrada de texto en el inicio de sesión.",
         action: "¡Genial!"
+      },
+      edit: {
+        title: "Editar pista",
+        trackTitle: "Título",
+        artist: "Artista",
+        bpm: "BPM",
+        style: "Estilo",
+        save: "Guardar",
+        cancel: "Cancelar"
       }
     }
   }

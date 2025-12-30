@@ -1,60 +1,39 @@
-# Дополнительный технический контекст Tempo.TRFNV
+# Техническое погружение (Deep Dive)
 
-Этот файл дополняет `AGENT_CONTEXT.md` и содержит глубокие технические подробности.
+## 1. Схема Базы Данных (PostgreSQL)
 
-## 1. Специфика iOS (PWA & Audio)
+Вместо JSON мы используем реляционную БД. Схема описана в `server/schema.sql`.
 
-### Формы и клавиатура:
-*   **Font-size:** Для всех `input` в CSS/Tailwind установлен шрифт **16px**. Это критично для iOS, иначе браузер делает принудительный зум при фокусе, что ломает верстку PWA.
-*   **Z-index:** Модальные окна имеют `z-[9999]`, чтобы перекрывать нативные элементы и фиксированный плеер.
+### Основные таблицы:
+*   `users`: (id TEXT, email, role, is_verified, ...)
+*   `tracks`: (id TEXT, title, artist, bpm, style, owner_id, is_public)
+*   `playlists`: (id TEXT, user_id, name)
+*   `playlist_tracks`: (playlist_id, track_id) - связь M2M
+*   `changelogs`: (version, description_ru, description_en) - история версий
 
-### Bluetooth и Качество звука:
-*   Активация микрофона (для Clap Control) в Safari переводит Bluetooth-устройства в режим **HFP (Hands-Free Profile)**, что резко снижает качество звука. 
-*   **Решение:** Мы используем единый `AudioContext` для микрофона и музыки, чтобы минимизировать переключения, но лучше предупреждать пользователя, что Clap Control может снизить качество звука в наушниках.
+*Примечание:* ID пока остаются текстовыми (timestamp string) для совместимости с легаси фронтендом.
 
-## 2. Полная схема Базы Данных (db.json)
+## 2. Переменные окружения (.env)
 
-### Объект `users`:
-```json
-{
-  "id": "string (timestamp)",
-  "email": "string",
-  "password": "string (bcrypt hash)",
-  "role": "admin | coach | student",
-  "coachId": "string | null (id тренера для ученика)",
-  "isVerified": "boolean",
-  "verificationToken": "string | null",
-  "favorites": ["track_id", ...],
-  "isSubscribed": "boolean (legacy)"
-}
+При деплое необходимо создать файл `.env` в папке с `docker-compose.yml`.
+
+```env
+PORT=3006  # 3006 для Теста, 3005 для Прода
+DATABASE_URL=postgres://tempo:tempo_secure_password@mautrix-telegram-db-1:5432/tempo
+JWT_SECRET=... # Длинная случайная строка
+SMTP_HOST=smtp.mail.ru
+SMTP_PORT=465
+SMTP_USER=tempo@trfnv.ru
+SMTP_PASS=... # Пароль приложения
 ```
 
-### Объект `tracks`:
-```json
-{
-  "id": "string (timestamp)",
-  "title": "string",
-  "artist": "string",
-  "style": "string (DanceStyle enum)",
-  "bpm": "number",
-  "url": "string (path to /uploads/...)",
-  "ownerId": "string (user_id)",
-  "isPublic": "boolean",
-  "isPreloaded": "boolean (legacy)"
-}
-```
+*Важно:* `mautrix-telegram-db-1` резолвится, потому что сеть `mautrix-telegram_default` подключена как `external` в `docker-compose.yml`.
 
-## 3. Детальная логика фильтрации (Backend)
+## 3. Фронтенд и Дизайн
+См. `DESIGN_SYSTEM.md` для правил верстки.
+*   Используем `rounded-[2rem]` для модалок.
+*   Цвет акцента `#eab308` (Yellow-500).
+*   Локализация через `i18n.ts` (namespaces: `app`, `auth`, `edit`, `admin`...).
 
-При запросе `GET /api/tracks`:
-1.  Если `token` отсутствует -> `tracks.filter(t => t.isPublic)`.
-2.  Если `role === 'student'` -> `tracks.filter(t => t.isPublic || t.ownerId === user.coachId)`.
-3.  Если `role === 'coach'` -> `tracks.filter(t => t.isPublic || t.ownerId === user.id)`.
-4.  Если `role === 'admin'` -> `tracks` (все без фильтра).
-
-## 4. Технический долг
-
-*   **Env variables:** Секреты (JWT_SECRET, SMTP_PASS) сейчас в коде. Требуется переезд на `process.env`.
-*   **Error UI:** Нужно внедрить тосты (напр. `react-hot-toast`) для отображения ошибок API, сейчас многие ошибки пишутся только в консоль.
-*   **Cleanup:** При удалении трека из БД файл в `uploads` удаляется, но при удалении пользователя его треки и файлы сейчас остаются "сиротами". Нужен каскадный клинап.
-*   **Shared Playlists:** Сейчас ученик видит ВСЕ плейлисты своего тренера. Нужно добавить флаг `isShared` в объект плейлиста.
+## 4. Ролевая модель (isAdmin fix)
+Бэкенд возвращает поле `isAdmin: true` для пользователей с ролью `admin` в ответе `/api/auth/login` и `/api/auth/me`. Это нужно для корректной работы легаси-проверок на фронтенде (`user?.isAdmin`).
