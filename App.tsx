@@ -582,7 +582,25 @@ const App: React.FC = () => {
           {playlists.map(pl => (
             <div key={pl.id} className="relative group">
               <button onClick={() => setActiveStyle(pl.id)} className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-full transition ${activeStyle === pl.id ? 'bg-indigo-500 text-white shadow-md' : 'bg-white/5 text-gray-400 border border-white/10'}`}><PlaylistIcon /> {pl.name}</button>
-              <button onClick={(e) => { e.stopPropagation(); setPlaylists(prev => prev.filter(p => p.id !== pl.id)); if (activeStyle === pl.id) setActiveStyle('All'); }} className="absolute -top-1 -right-1 bg-red-500 text-white p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow-lg scale-75"><TrashIcon /></button>
+              <button 
+                onClick={(e) => { 
+                    e.stopPropagation(); 
+                    if (token) {
+                        fetch(`/api/playlists/${pl.id}`, { 
+                            method: 'DELETE', 
+                            headers: { 'Authorization': `Bearer ${token}` } 
+                        })
+                        .then(() => {
+                            setPlaylists(prev => prev.filter(p => p.id !== pl.id)); 
+                            if (activeStyle === pl.id) setActiveStyle('All');
+                        })
+                        .catch(console.error);
+                    }
+                }} 
+                className="absolute -top-1 -right-1 bg-red-500 text-white p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow-lg scale-75"
+              >
+                <TrashIcon />
+              </button>
             </div>
           ))}
           <button onClick={() => user ? setShowPlaylistCreator(true) : setShowAuth(true)} className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-full bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 transition border-dashed"><PlusIcon /> {t('app.playlist')}</button>
@@ -800,6 +818,7 @@ const App: React.FC = () => {
         ref={audioRef}
         crossOrigin="anonymous"
         src={player.currentTrack?.url}
+        preload="metadata"
         onTimeUpdate={() => { if (audioRef.current) setPlayer(p => ({ ...p, currentTime: audioRef.current?.currentTime || 0, duration: audioRef.current?.duration || 0 })); }}
         onEnded={() => {
             if (player.isRepeat) {

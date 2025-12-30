@@ -161,9 +161,55 @@ app.patch('/api/tracks/:id', authenticateToken, async (req, res) => {
     }
 });
 
-// AUTH
+// ADMIN USER MANAGEMENT
 
-app.post('/api/auth/register', async (req, res) => {
+app.get('/api/admin/users', authenticateToken, async (req, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+    try {
+        const db = await getDb();
+        const users = db.users.map(({ password, verificationToken, ...u }) => u);
+        res.json(users);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/admin/users/:id', authenticateToken, async (req, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+    try {
+        const db = await getDb();
+        const index = db.users.findIndex(u => u.id === req.params.id);
+        if (index === -1) return res.status(404).json({ error: 'User not found' });
+        
+        // Don't delete the last admin or yourself
+        if (db.users[index].email === 'admin@trfnv.ru') return res.status(403).json({ error: 'Cannot delete main admin' });
+
+        db.users.splice(index, 1);
+        await saveDb(db);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.patch('/api/admin/users/:id', authenticateToken, async (req, res) => {
+    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Admin access required' });
+    try {
+        const db = await getDb();
+        const user = db.users.find(u => u.id === req.params.id);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        if (req.body.role) user.role = req.body.role;
+        if (req.body.isVerified !== undefined) user.isVerified = req.body.isVerified;
+
+        await saveDb(db);
+        res.json(user);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ... Auth routes ...
     try {
         const { email, password, inviteCode } = req.body;
         console.log(`Registration request received for email: ${email}, inviteCode: ${inviteCode}`);
