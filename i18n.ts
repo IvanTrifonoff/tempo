@@ -34,11 +34,12 @@ const resources = {
         inviteTitle: "Invite Students",
         inviteDesc: "Share your unique link",
         copyLink: "Copy Link",
-        inviteCopied: "Invite link copied!"
+        inviteCopied: "Invite link copied!",
+        adminUsers: "User Management"
       },
       auth: {
         welcomeBack: "Welcome Back",
-        createAccount: "Create Account",
+        createAccount: "Create Coach Account",
         studentReg: "Student Registration",
         verifyTitle: "Check your email",
         verifyDesc: "We sent a verification link. Please confirm to activate your account.",
@@ -142,11 +143,12 @@ const resources = {
         inviteTitle: "Ваши ученики",
         inviteDesc: "Поделитесь ссылкой",
         copyLink: "Копировать ссылку",
-        inviteCopied: "Ссылка скопирована!"
+        inviteCopied: "Ссылка скопирована!",
+        adminUsers: "Пользователи"
       },
       auth: {
         welcomeBack: "С возвращением",
-        createAccount: "Создать аккаунт",
+        createAccount: "Создать аккаунт тренера",
         studentReg: "Регистрация ученика",
         verifyTitle: "Проверьте почту",
         verifyDesc: "Мы отправили ссылку для подтверждения. Подтвердите для активации аккаунта.",
@@ -250,11 +252,12 @@ const resources = {
         inviteTitle: "Tus estudiantes",
         inviteDesc: "Comparte tu enlace",
         copyLink: "Copiar enlace",
-        inviteCopied: "¡Enlace copiado!"
+        inviteCopied: "¡Enlace copiado!",
+        adminUsers: "Gestión de usuarios"
       },
       auth: {
         welcomeBack: "Bienvenido de nuevo",
-        createAccount: "Crear cuenta",
+        createAccount: "Crear cuenta de entrenador",
         studentReg: "Registro de estudiante",
         verifyTitle: "Revisa tu correo",
         verifyDesc: "Hemos enviado un enlace de verificación.",

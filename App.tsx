@@ -4,12 +4,14 @@ import { DanceStyle, Track, User, PlayerState, Playlist, TrainingSettings } from
 import { 
   PlayIcon, PauseIcon, SkipForward, SkipBack, SettingsIcon, 
   PlusIcon, UserIcon, HeartIcon, PlaylistIcon, 
-  MetronomeIcon, TrashIcon, RepeatIcon, ShuffleIcon, WhistleIcon
+  MetronomeIcon, TrashIcon, RepeatIcon, ShuffleIcon, WhistleIcon,
+  ShieldCheckIcon
 } from './components/Icons';
 import { STYLE_COLORS, APP_VERSION } from './constants';
 import AdminPanel from './components/AdminPanel';
 import AuthModal from './components/AuthModal';
 import AddToPlaylistModal from './components/AddToPlaylistModal';
+import UserManagementModal from './components/UserManagementModal';
 import ClapDetector from './components/ClapDetector';
 import ReloadPrompt from './components/ReloadPrompt';
 
@@ -28,6 +30,7 @@ const App: React.FC = () => {
   const [showAdmin, setShowAdmin] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showUserManagement, setShowUserManagement] = useState(false);
   const [showPlaylistCreator, setShowPlaylistCreator] = useState(false);
   const [showTrainingPanel, setShowTrainingPanel] = useState(false);
   const [editingBpmId, setEditingBpmId] = useState<string | null>(null);
@@ -575,6 +578,16 @@ const App: React.FC = () => {
             <SettingsIcon />
             <span className="hidden md:inline font-bold text-sm tracking-tight">{t('app.settings')}</span>
           </button>
+
+          {user?.role === 'admin' && (
+            <button 
+              onClick={() => setShowUserManagement(true)}
+              className="flex items-center gap-2 p-2 md:px-3 md:py-1.5 rounded-full border border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 transition-all"
+            >
+              <ShieldCheckIcon />
+              <span className="hidden md:inline font-bold text-sm tracking-tight">{t('app.adminUsers')}</span>
+            </button>
+          )}
           
           {(user?.role === 'admin' || user?.role === 'coach' || user?.isAdmin) && (
             <button onClick={() => setShowAdmin(true)} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full border border-white/10 transition text-sm">
@@ -1094,6 +1107,7 @@ const App: React.FC = () => {
       <div className={`fixed inset-0 bg-white z-40 pointer-events-none transition-opacity duration-200 ease-out ${showFlash ? 'opacity-20' : 'opacity-0'}`} />
       
       {showAdmin && <AdminPanel onAddTrack={handleAddTrack} onClose={() => setShowAdmin(false)} />}
+      {showUserManagement && <UserManagementModal onClose={() => setShowUserManagement(false)} />}
       {showAuth && <AuthModal onLogin={handleLogin} onClose={() => setShowAuth(false)} />}
       {playlistModalTrackId && (
         <AddToPlaylistModal 
