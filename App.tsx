@@ -325,27 +325,45 @@ const App: React.FC = () => {
   // --- Media Session API (Background Play) ---
   useEffect(() => {
     if ('mediaSession' in navigator && player.currentTrack) {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: player.currentTrack.title,
-        artist: player.currentTrack.artist,
-        album: t(`styles.${player.currentTrack.style}`),
-        artwork: [
-          { src: '/icon.svg', sizes: '96x96', type: 'image/svg+xml' },
-          { src: '/icon.svg', sizes: '512x512', type: 'image/svg+xml' },
-        ]
-      });
+      try {
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: player.currentTrack.title || 'Unknown Title',
+          artist: player.currentTrack.artist || 'Unknown Artist',
+          album: t(`styles.${player.currentTrack.style}`) || 'Tempo',
+          artwork: [
+            { src: `${window.location.origin}/icon.svg`, sizes: '96x96', type: 'image/svg+xml' },
+            { src: `${window.location.origin}/icon.svg`, sizes: '512x512', type: 'image/svg+xml' },
+          ]
+        });
 
-      navigator.mediaSession.setActionHandler('play', async () => {
-        await initAudioCtx();
-        setPlayer(p => ({ ...p, isPlaying: true, isPauseCountdown: false }));
-      });
-      navigator.mediaSession.setActionHandler('pause', () => {
-        setPlayer(p => ({ ...p, isPlaying: false }));
-      });
-      navigator.mediaSession.setActionHandler('previoustrack', () => skip('prev'));
-      navigator.mediaSession.setActionHandler('nexttrack', () => skip('next'));
+        navigator.mediaSession.setActionHandler('play', async () => {
+          await initAudioCtx();
+          setPlayer(p => ({ ...p, isPlaying: true, isPauseCountdown: false }));
+        });
+        navigator.mediaSession.setActionHandler('pause', () => {
+          setPlayer(p => ({ ...p, isPlaying: false }));
+        });
+        navigator.mediaSession.setActionHandler('previoustrack', () => skip('prev'));
+        navigator.mediaSession.setActionHandler('nexttrack', () => skip('next'));
+      } catch (e) {
+        console.warn("Media Session API error:", e);
+      }
     }
   }, [player.currentTrack, togglePlay, skip, t, initAudioCtx]);
+
+  // --- Data Loading ---
+  useEffect(() => {
+    const headers: any = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    fetch('/api/tracks', { headers })
+      .then(res => res.json())
+      .then(data => {
+          if (Array.isArray(data)) setTracks(data);
+          else console.error("Invalid tracks data:", data);
+      })
+      .catch(console.error);
+  }, [token]);
 
   useEffect(() => {
     if (!audioRef.current || !player.currentTrack) return;

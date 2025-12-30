@@ -51,10 +51,10 @@ const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
   
-  if (!token) return res.sendStatus(401);
+  if (!token) return res.status(401).json({ error: 'Unauthorized' });
 
   jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.sendStatus(403);
+    if (err) return res.status(403).json({ error: 'Invalid token' });
     req.user = user;
     next();
   });
@@ -72,10 +72,36 @@ const upload = multer({ storage: storage });
 
 // API Routes
 
+// GET Tracks - Public access with internal filtering
 app.get('/api/tracks', async (req, res) => {
   try {
     const db = await getDb();
-    res.json(db.tracks);
+    
+    // Optional token check
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    let user = null;
+    
+    if (token) {
+        try { user = jwt.verify(token, JWT_SECRET); } catch(e) {}
+    }
+
+    let filteredTracks = [];
+
+    if (!user) {
+        // Guest: only public tracks
+        filteredTracks = db.tracks.filter(t => t.isPublic);
+    } else if (user.role === 'admin') {
+        filteredTracks = db.tracks;
+    } else if (user.role === 'coach') {
+        filteredTracks = db.tracks.filter(t => t.isPublic || t.ownerId === user.id);
+    } else if (user.role === 'student') {
+        filteredTracks = db.tracks.filter(t => t.isPublic || t.ownerId === user.coachId);
+    } else {
+        filteredTracks = db.tracks.filter(t => t.isPublic);
+    }
+
+    res.json(filteredTracks);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });
