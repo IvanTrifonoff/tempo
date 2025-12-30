@@ -1,5 +1,9 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import multer from 'multer';
 import cors from 'cors';
@@ -7,10 +11,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import pg from 'pg';
-import dotenv from 'dotenv';
 import { sendVerificationEmail, transporter } from './email.js';
-
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -76,8 +77,6 @@ app.get('/api/tracks', async (req, res) => {
             query = 'SELECT * FROM tracks WHERE is_public = true OR owner_id = $1 ORDER BY created_at DESC';
             params = [user.id];
         } else if (user.role === 'student') {
-            // Need coachId. It's in the token, but let's be safe
-            // If coachId is in token:
             const coachId = user.coachId; 
             if (coachId) {
                 query = 'SELECT * FROM tracks WHERE is_public = true OR owner_id = $1 ORDER BY created_at DESC';
@@ -90,7 +89,6 @@ app.get('/api/tracks', async (req, res) => {
 
     const { rows } = await pool.query(query, params);
     
-    // Map snake_case to camelCase for frontend compatibility
     const tracks = rows.map(row => ({
         id: row.id,
         title: row.title,
@@ -118,7 +116,7 @@ app.post('/api/tracks', authenticateToken, upload.single('file'), async (req, re
     if (req.file) url = `/uploads/${req.file.filename}`;
     else if (req.body.url) url = req.body.url;
 
-    const newTrackId = Date.now().toString(); // Use string ID for compatibility
+    const newTrackId = Date.now().toString();
     const ownerId = req.user.id;
     const isPublic = req.user.role === 'admin';
 
@@ -155,10 +153,9 @@ app.delete('/api/tracks/:id', authenticateToken, async (req, res) => {
         }
 
         if (track.url && track.url.startsWith('/uploads/')) {
-             // Try deleting file, but don't crash if fails
              try {
                  const fileName = path.basename(track.url);
-                 await fs.promises.unlink(path.join(UPLOADS_PATH, fileName));
+                 fs.unlinkSync(path.join(UPLOADS_PATH, fileName));
             } catch (e) {}
         }
         
@@ -186,6 +183,7 @@ app.patch('/api/tracks/:id', authenticateToken, async (req, res) => {
         if (req.body.title) { updates.push(`title = $${idx++}`); values.push(req.body.title); }
         if (req.body.artist) { updates.push(`artist = $${idx++}`); values.push(req.body.artist); }
         if (req.body.bpm) { updates.push(`bpm = $${idx++}`); values.push(Number(req.body.bpm)); }
+        if (req.body.style) { updates.push(`style = $${idx++}`); values.push(req.body.style); }
         
         if (updates.length > 0) {
             values.push(req.params.id);
@@ -205,7 +203,16 @@ app.patch('/api/tracks/:id', authenticateToken, async (req, res) => {
                 isPublic: updated.is_public
             });
         } else {
-            res.json(track);
+            res.json({
+                id: track.id,
+                title: track.title,
+                artist: track.artist,
+                style: track.style,
+                bpm: track.bpm,
+                url: track.url,
+                ownerId: track.owner_id,
+                isPublic: track.is_public
+            });
         }
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -223,7 +230,7 @@ app.get('/api/admin/users', authenticateToken, async (req, res) => {
             role: u.role,
             coachId: u.coach_id,
             isVerified: u.is_verified,
-            // favorites ignored here as per original
+            isAdmin: u.role === 'admin'
         })));
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -266,7 +273,8 @@ app.patch('/api/admin/users/:id', authenticateToken, async (req, res) => {
             email: u.email,
             role: u.role,
             coachId: u.coach_id,
-            isVerified: u.is_verified
+            isVerified: u.is_verified,
+            isAdmin: u.role === 'admin'
         });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -278,7 +286,7 @@ const mapUser = (user, favorites = []) => ({
     role: user.role,
     coachId: user.coach_id,
     isVerified: user.is_verified,
-    isAdmin: user.role === 'admin', // Restore legacy field for frontend checks
+    isAdmin: user.role === 'admin',
     favorites
 });
 
@@ -344,7 +352,6 @@ app.post('/api/auth/login', async (req, res) => {
 
         const token = jwt.sign({ id: user.id, email: user.email, role: user.role, coachId: user.coach_id }, JWT_SECRET);
         
-        // Load favorites
         const favsRes = await pool.query('SELECT track_id FROM user_favorites WHERE user_id = $1', [user.id]);
         const favorites = favsRes.rows.map(r => r.track_id);
 
@@ -399,7 +406,6 @@ app.post('/api/user/favorites', authenticateToken, async (req, res) => {
         const { trackId } = req.body;
         const userId = req.user.id;
         
-        // Check if exists
         const check = await pool.query('SELECT 1 FROM user_favorites WHERE user_id = $1 AND track_id = $2', [userId, trackId]);
         
         if (check.rows.length > 0) {
@@ -433,25 +439,21 @@ app.get('/api/playlists', authenticateToken, async (req, res) => {
         
         if (!targetUserId) return res.json([]);
 
-        const { rows: playlists } = await pool.query(
-            'SELECT * FROM playlists WHERE user_id = $1 ORDER BY created_at DESC', 
-            [targetUserId]
-        );
+        // Optimized single query to fetch playlists and their tracks
+        const { rows } = await pool.query(`
+            SELECT 
+                p.id, 
+                p.user_id as "userId", 
+                p.name, 
+                COALESCE(json_agg(pt.track_id) FILTER (WHERE pt.track_id IS NOT NULL), '[]') as "trackIds"
+            FROM playlists p
+            LEFT JOIN playlist_tracks pt ON p.id = pt.playlist_id
+            WHERE p.user_id = $1
+            GROUP BY p.id
+            ORDER BY p.created_at DESC;
+        `, [targetUserId]);
 
-        // Populate trackIds
-        for (const pl of playlists) {
-            const tRes = await pool.query(
-                'SELECT track_id FROM playlist_tracks WHERE playlist_id = $1 ORDER BY added_at ASC',
-                [pl.id]
-            );
-            pl.trackIds = tRes.rows.map(r => r.track_id);
-            // Map snake_case to camelCase
-            pl.userId = pl.user_id;
-            delete pl.user_id;
-            delete pl.created_at;
-        }
-
-        res.json(playlists);
+        res.json(rows);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -482,7 +484,6 @@ app.delete('/api/playlists/:id', authenticateToken, async (req, res) => {
 app.post('/api/playlists/:id/tracks', authenticateToken, async (req, res) => {
     try {
         const { trackId } = req.body;
-        // Check ownership
         const plCheck = await pool.query('SELECT * FROM playlists WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
         if (plCheck.rows.length === 0) return res.status(404).json({ error: 'Not found' });
         
@@ -491,19 +492,19 @@ app.post('/api/playlists/:id/tracks', authenticateToken, async (req, res) => {
             [req.params.id, trackId]
         );
         
-        // Return updated playlist object
-        const pl = plCheck.rows[0];
-        const tRes = await pool.query(
-            'SELECT track_id FROM playlist_tracks WHERE playlist_id = $1 ORDER BY added_at ASC',
-            [pl.id]
-        );
+        const { rows } = await pool.query(`
+            SELECT 
+                p.id, 
+                p.user_id as "userId", 
+                p.name, 
+                COALESCE(json_agg(pt.track_id) FILTER (WHERE pt.track_id IS NOT NULL), '[]') as "trackIds"
+            FROM playlists p
+            LEFT JOIN playlist_tracks pt ON p.id = pt.playlist_id
+            WHERE p.id = $1
+            GROUP BY p.id;
+        `, [req.params.id]);
         
-        res.json({
-            id: pl.id,
-            userId: pl.user_id,
-            name: pl.name,
-            trackIds: tRes.rows.map(r => r.track_id)
-        });
+        res.json(rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -517,18 +518,19 @@ app.delete('/api/playlists/:id/tracks/:trackId', authenticateToken, async (req, 
             [req.params.id, req.params.trackId]
         );
 
-        const pl = plCheck.rows[0];
-        const tRes = await pool.query(
-            'SELECT track_id FROM playlist_tracks WHERE playlist_id = $1 ORDER BY added_at ASC',
-            [pl.id]
-        );
+        const { rows } = await pool.query(`
+            SELECT 
+                p.id, 
+                p.user_id as "userId", 
+                p.name, 
+                COALESCE(json_agg(pt.track_id) FILTER (WHERE pt.track_id IS NOT NULL), '[]') as "trackIds"
+            FROM playlists p
+            LEFT JOIN playlist_tracks pt ON p.id = pt.playlist_id
+            WHERE p.id = $1
+            GROUP BY p.id;
+        `, [req.params.id]);
         
-        res.json({
-            id: pl.id,
-            userId: pl.user_id,
-            name: pl.name,
-            trackIds: tRes.rows.map(r => r.track_id)
-        });
+        res.json(rows[0]);
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

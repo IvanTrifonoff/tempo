@@ -10,22 +10,21 @@ RUN npm run build
 FROM node:20-alpine
 WORKDIR /app
 
-# Create necessary directories
-RUN mkdir -p /app/server /app/dist /app/server/uploads
-
 # Install server dependencies
 COPY server/package*.json ./server/
+RUN cd server && npm install --omit=dev
+
+# Copy server code and build
+COPY server/ ./server/
+COPY --from=builder /app/dist ./dist
+
+# Create uploads and set permissions
+# Note: If using host volumes, ensure UID 1000 has write access on host
+RUN mkdir -p /app/server/uploads && \
+    chown -R node:node /app
+
+USER node
 WORKDIR /app/server
-RUN npm install --production
-
-# Copy server code
-COPY server/ .
-
-# Copy built frontend from builder stage
-COPY --from=builder /app/dist ../dist
-
-# Set permissions
-RUN chmod 777 uploads && chmod -R 777 data
 
 EXPOSE 3000
 

@@ -1,24 +1,28 @@
 import nodemailer from 'nodemailer';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 export const transporter = nodemailer.createTransport({
-  host: 'smtp.mail.ru',
-  port: 465,
+  host: process.env.SMTP_HOST || 'smtp.mail.ru',
+  port: parseInt(process.env.SMTP_PORT || '465'),
   secure: true,
   auth: {
-    user: 'tempo@trfnv.ru',
-    pass: 'KkM8SRgfFrp68W4uavl2'
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
   }
 });
 
 export async function sendVerificationEmail(email, token) {
-  const domain = 'https://tempotest.trfnv.ru'; 
+  // Use protocol + host from request in a real scenario, but for now fallback to env or test domain
+  const domain = process.env.PUBLIC_DOMAIN || 'https://tempotest.trfnv.ru'; 
   const link = `${domain}/verify?token=${token}`;
   
   console.log(`Attempting to send email to ${email} via ${transporter.options.host}...`);
   
   try {
     const info = await transporter.sendMail({
-      from: '"Tempo Support" <tempo@trfnv.ru>',
+      from: `"Tempo Support" <${process.env.SMTP_USER}>`,
       to: email,
       subject: 'Подтверждение регистрации в Tempo.TRFNV',
       html: `
@@ -39,7 +43,6 @@ export async function sendVerificationEmail(email, token) {
     return true;
   } catch (error) {
     console.error(`ERROR sending email to ${email}:`, error.message);
-    console.error("Full error stack:", error);
     return false;
   }
 }
