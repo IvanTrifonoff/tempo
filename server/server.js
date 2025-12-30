@@ -165,7 +165,8 @@ app.patch('/api/tracks/:id', authenticateToken, async (req, res) => {
 
 app.post('/api/auth/register', async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { email, password, inviteCode } = req.body;
+        console.log(`Registration request received for email: ${email}, inviteCode: ${inviteCode}`);
         if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
         
         const db = await getDb();
