@@ -303,17 +303,36 @@ app.post('/api/auth/login', async (req, res) => {
     } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.get('/api/auth/verify', async (req, res) => {
+app.get('/verify', async (req, res) => {
     try {
         const { token } = req.query;
+        if (!token) return res.status(400).send('Token is required');
+        
         const db = await getDb();
         const user = db.users.find(u => u.verificationToken === token);
-        if (!user) return res.status(400).send('Invalid token');
+        
+        if (!user) {
+            console.log(`Verification failed for token: ${token}`);
+            return res.status(400).send('<h1>Invalid or expired token.</h1><p>Please try registering again or contact support.</p>');
+        }
+        
         user.isVerified = true;
         user.verificationToken = null;
         await saveDb(db);
-        res.send('<h1>Email verified! You can now login.</h1>');
-    } catch (err) { res.status(500).send(err.message); }
+        
+        console.log(`User verified: ${user.email}`);
+        res.send(`
+            <div style="font-family: sans-serif; text-align: center; padding: 50px; background: #0a0a0a; color: white; height: 100vh;">
+                <h1 style="color: #eab308;">Email Verified!</h1>
+                <p>Your account has been activated successfully.</p>
+                <br>
+                <a href="/" style="background: #eab308; color: black; padding: 10px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Go to Tempo</a>
+            </div>
+        `);
+    } catch (err) { 
+        console.error("Verify error:", err);
+        res.status(500).send(err.message); 
+    }
 });
 
 // User API
