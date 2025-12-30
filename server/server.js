@@ -103,12 +103,18 @@ app.post('/api/tracks', authenticateToken, upload.single('file'), async (req, re
 });
 
 app.delete('/api/tracks/:id', authenticateToken, async (req, res) => {
-    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin access required' });
     try {
         const db = await getDb();
         const trackIndex = db.tracks.findIndex(t => t.id === req.params.id);
         if (trackIndex === -1) return res.status(404).json({error: 'Track not found'});
+        
         const track = db.tracks[trackIndex];
+        
+        // Permission check
+        if (req.user.role !== 'admin' && track.ownerId !== req.user.id) {
+            return res.status(403).json({ error: 'Permission denied' });
+        }
+
         if (track.url && track.url.startsWith('/uploads/')) {
              try {
                  const fileName = path.basename(track.url);
@@ -125,32 +131,20 @@ app.delete('/api/tracks/:id', authenticateToken, async (req, res) => {
 });
 
 app.patch('/api/tracks/:id', authenticateToken, async (req, res) => {
-    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin access required' });
     try {
         const db = await getDb();
         const track = db.tracks.find(t => t.id === req.params.id);
         if (!track) return res.status(404).json({error: 'Not found'});
+        
+        // Permission check
+        if (req.user.role !== 'admin' && track.ownerId !== req.user.id) {
+            return res.status(403).json({ error: 'Permission denied' });
+        }
         
         if (req.body.title) track.title = req.body.title;
         if (req.body.artist) track.artist = req.body.artist;
         if (req.body.bpm) track.bpm = Number(req.body.bpm);
         
-        await saveDb(db);
-        res.json(track);
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.patch('/api/tracks/:id/bpm', authenticateToken, async (req, res) => {
-    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin access required' });
-    try {
-        const db = await getDb();
-        const { bpm } = req.body;
-        const track = db.tracks.find(t => t.id === req.params.id);
-        if (!track) return res.status(404).json({error: 'Not found'});
-        track.bpm = Number(bpm);
         await saveDb(db);
         res.json(track);
     } catch (err) {
