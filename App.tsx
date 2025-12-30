@@ -149,6 +149,13 @@ const App: React.FC = () => {
       setUser(null);
   };
 
+  const copyInviteLink = () => {
+    if (!user) return;
+    const link = `${window.location.origin}/?invite=${user.id}`;
+    navigator.clipboard.writeText(link);
+    alert(t('app.inviteCopied') || 'Invite link copied to clipboard!');
+  };
+
   // --- Data Loading ---
   useEffect(() => {
     fetch('/api/tracks')
@@ -563,7 +570,7 @@ const App: React.FC = () => {
             <span className="hidden md:inline font-bold text-sm tracking-tight">{t('app.settings')}</span>
           </button>
           
-          {user?.isAdmin && (
+          {(user?.role === 'admin' || user?.role === 'coach') && (
             <button onClick={() => setShowAdmin(true)} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full border border-white/10 transition text-sm">
               <PlusIcon /> <span className="hidden md:inline">{t('app.upload')}</span>
             </button>
@@ -980,6 +987,27 @@ const App: React.FC = () => {
                   </button>
                 )}
               </div>
+
+              {/* Coach: Invite Student */}
+              {user?.role === 'coach' && (
+                <div className="p-6 bg-yellow-500/10 rounded-3xl border border-yellow-500/20 flex flex-col xs:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 w-full xs:w-auto text-left">
+                    <div className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-black text-xl shrink-0">
+                      👥
+                    </div>
+                    <div>
+                      <h4 className="text-white font-bold text-lg">{t('app.inviteTitle') || 'Invite Students'}</h4>
+                      <p className="text-xs text-gray-500">{t('app.inviteDesc') || 'Students register via your link'}</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={copyInviteLink}
+                    className="w-full xs:w-auto px-6 py-2.5 bg-yellow-500 text-black font-black rounded-xl text-xs uppercase tracking-widest hover:bg-yellow-400 transition whitespace-nowrap shadow-lg shadow-yellow-500/20"
+                  >
+                    {t('app.copyLink') || 'Copy Link'}
+                  </button>
+                </div>
+              )}
             </div>
             <button onClick={() => setShowSettings(false)} className="w-full mt-12 py-5 bg-white/5 text-white font-bold uppercase rounded-[1.5rem] hover:bg-white/10 transition-all border border-white/10">
               {t('pwa.close')}

@@ -1,7 +1,7 @@
 
 import { DanceStyle, Track } from './types';
 
-export const APP_VERSION = '1.0.22-test';
+export const APP_VERSION = '1.0.23-test';
 
 export const INITIAL_TRACKS: Track[] = [
   {
