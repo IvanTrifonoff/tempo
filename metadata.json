@@ -1,5 +1,0 @@
-{
-  "name": "tempo.TRFNV - dance coach PRO",
-  "description": "Professional music player for ballroom dance coaches with tempo control and library management.",
-  "stack": ["React", "TypeScript", "Tailwind CSS", "Vite"]
-}

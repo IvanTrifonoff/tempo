@@ -1,20 +1,61 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# tempo.TRFNV — Dance Coach PRO
 
-# Run and deploy your AI Studio app
+Профессиональный музыкальный плеер и SaaS-платформа для тренеров бальных танцев. Приложение оптимизировано для работы на мобильных устройствах как PWA и поддерживает специфические функции для тренировочного процесса.
 
-This contains everything you need to run your app locally.
+**Сайт:** [https://tempo.trfnv.ru](https://tempo.trfnv.ru)
 
-View your app in AI Studio: https://ai.studio/apps/drive/1J68DDcDzDenZQPt7RvUraRPtKKW7QzHW
+## 🌟 Основные возможности
 
-## Run Locally
+### Для тренера
+*   **Управление темпом (BPM):** Изменение скорости воспроизведения в реальном времени без потери качества звука.
+*   **Режим тренера (Coach Mode):**
+    *   **Автопилот:** Автоматическая смена треков и настраиваемые паузы между танцами.
+    *   **Clap Control:** Управление воспроизведением (пауза/старт) с помощью двойного хлопка (использует Web Audio API).
+    *   **Метроном:** Синхронизированный с музыкой визуальный и звуковой метроном.
+*   **Личная библиотека:** Загрузка своих треков, создание персональных плейлистов.
+*   **Система инвайтов:** Генерация ссылок для регистрации своих учеников.
 
-**Prerequisites:**  Node.js
+### Для ученика
+*   **Доступ к контенту:** Прослушивание общедоступной библиотеки и треков своего тренера.
+*   **Обучение:** Возможность тренироваться под музыку тренера с сохранением настроек темпа.
 
+### Технические особенности
+*   **PWA (Progressive Web App):** Установка на смартфон, работа в оффлайне, мгновенная загрузка.
+*   **Background Audio:** Стабильное воспроизведение в фоновом режиме на iOS и Android (Media Session API).
+*   **Push-уведомления:** Оповещения об обновлениях системы.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+## 🛠 Технологический стек
+
+*   **Frontend:** React 19, Vite, Tailwind CSS v3.
+*   **Backend:** Node.js, Express.
+*   **Database:** JSON-based DB (db.json).
+*   **Audio:** Web Audio API, HTML5 Audio.
+*   **DevOps:** Docker, Nginx, Certbot (SSL).
+
+## 🚀 Быстрый старт (Локально)
+
+1.  Установите зависимости:
+    ```bash
+    npm install --legacy-peer-deps
+    cd server && npm install
+    ```
+2.  Запустите сервер (Backend):
+    ```bash
+    cd server && node server.js
+    ```
+3.  Запустите фронтенд (в другом терминале):
+    ```bash
+    npm run dev
+    ```
+
+## 📦 Деплой (Docker)
+
+Сборка и запуск контейнера:
+```bash
+docker build -t tempo-app .
+docker run -d --name tempo-app -p 3000:3000 -v tempo-data:/app/server/data -v tempo-uploads:/app/server/uploads tempo-app
+```
+
+---
+**Разработано для TRFNV.RU**  
+*Контекст для агентов разработки находится в файле `AGENT_CONTEXT.md`*
