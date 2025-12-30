@@ -9,63 +9,42 @@
 **Схема соединений:**
 `HTMLAudioElement` -> `MediaElementAudioSourceNode` -> `AnalyserNode` (для визуализации) -> `AudioContext.destination` (динамики).
 
-**Важные нюансы:**
-*   **MediaElementSource:** Создается только один раз за жизненный цикл приложения для конкретного тега `<audio>`. Повторный вызов `createMediaElementSource` вызовет ошибку. Ссылка на ноду хранится в `musicSourceNodeRef`.
-*   **Микрофон:** Поток микрофона (`micStreamRef`) подключается к отдельному `AnalyserNode` внутри компонента `ClapDetector.tsx`.
+**Реализация:**
+Логика инициализации и маршрутизации вынесена в хук **`hooks/useAudioContext.ts`**.
+*   **MediaElementSource:** Создается единожды. Ссылка на ноду хранится в `musicSourceNodeRef`.
+*   **Микрофон:** Поток микрофона обрабатывается в `ClapDetector.tsx`.
 
 ## 2. Алгоритм детекции хлопков (ClapDetector.tsx)
 
-*   **Частотный диапазон:** Анализируются частоты от 2.5 кГц до 8 кГц (транзиенты хлопка).
-*   **Логика:**
-    1. Детектируется резкий скачок амплитуды (энергия выше порога `sensitivity`).
-    2. Запускается окно ожидания в **800мс**.
-    3. Если в это окно попадает второй хлопок — срабатывает событие `onClap`.
-*   **Защита:** Алгоритм игнорирует постоянный фоновый шум и низкие частоты музыки.
+*   **Частотный диапазон:** Анализируются частоты от 2.5 кГц до 8 кГц.
+*   **Логика:** Скачок амплитуды -> Окно ожидания 800мс -> Второй хлопок -> `onClap`.
 
 ## 3. Спецификация API (Payloads)
 
 Для быстрой отладки через Postman/cURL:
 
-### Регистрация тренера
+### Регистрация
 `POST /api/auth/register`
 ```json
-{
-  "email": "coach@test.ru",
-  "password": "password123"
-}
+{ "email": "...", "password": "...", "inviteCode": "OPTIONAL" }
 ```
 
-### Регистрация ученика (по инвайту)
-`POST /api/auth/register`
+### Редактирование трека
+`PATCH /api/tracks/:id` (Требуется токен Admin или Owner)
 ```json
-{
-  "email": "student@test.ru",
-  "password": "password123",
-  "inviteCode": "ID_ТРЕНЕРА"
-}
-```
-
-### Обновление метаданных трека
-`PATCH /api/tracks/:id` (Admin/Owner only)
-```json
-{
-  "title": "New Title",
-  "artist": "New Artist",
-  "bpm": 120
-}
+{ "title": "New", "artist": "New", "bpm": 120, "style": "Rumba" }
 ```
 
 ## 4. Управление состоянием (State Management)
 
-В приложении не используются Redux или Context API. Все глобальное состояние сосредоточено в `App.tsx` и передается вниз через `props`.
+В версии 1.0.33 логика `App.tsx` декомпозирована на кастомные хуки:
 
-*   **Auth:** Токен хранится в `localStorage` под ключом `token`.
-*   **User:** Информация о текущем пользователе загружается один раз при старте через `/api/auth/me`.
-*   **Player:** Состояние плеера (`PlayerState`) полностью реактивно. При изменении `currentTrack` срабатывает `useEffect`, обновляющий `MediaSession`.
+*   **`hooks/usePlayer.ts`**: Управляет воспроизведением, очередью, `MediaSession API` и автопилотом. Возвращает объект `player` и методы управления.
+*   **`hooks/useAudioContext.ts`**: Отвечает за `AudioContext` (критично для iOS).
+*   **`hooks/useMetronome.ts`**: Генерирует звук (Oscillator) и управляет таймингом метронома.
 
 ## 5. Распространенные ошибки (Troubleshooting)
 
-*   **Ошибка 502 после деплоя:** Чаще всего вызвана Syntax Error в `server.js`. Проверь `docker logs tempo-test`.
-*   **Ошибка "String did not match expected pattern":** Ошибка в `MediaMetadata`. Проверь, что `artwork.src` — это абсолютный URL (с доступом по https).
-*   **Музыка не играет в фоне (iOS):** Проверь, не инициализировался ли `AudioContext` до взаимодействия пользователя с экраном. Контекст должен быть в состоянии `running`.
-*   **Письма не уходят:** Проверь лог сервера на фразу "SMTP Connection Error". Возможно, Mail.ru заблокировал пароль приложения.
+*   **Ошибка 502:** Проверь логи `tempo-app` и статус Postgres (`mautrix-telegram-db-1`).
+*   **Музыка не играет в фоне (iOS):** Проверь, что `initAudioCtx` вызывается только по user gesture (в `usePlayer` это обработано).
+*   **Changelog пустой:** Проверь таблицу `changelogs` в БД.
