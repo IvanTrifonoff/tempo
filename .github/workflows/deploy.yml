@@ -10,7 +10,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-test:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -21,7 +21,16 @@ jobs:
         with:
           node-version: '20'
 
-      # Install & Build Frontend to check for errors
+      - name: Check Version Consistency
+        run: node scripts/check-version.js
+
+  build-and-test:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
       - name: Install & Build
         run: |
           npm ci
@@ -44,44 +53,47 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
+      - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v4
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=latest
-            type=sha,prefix=
+          tags: type=raw,value=latest
 
-      - name: Build and push Docker image
+      - name: Build and push
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
 
   deploy:
     needs: build-push-docker
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy to Server via SSH
+      - name: Deploy & Sync Changelog
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            # Pull new image
+            # 1. Login & Pull
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             docker pull ghcr.io/${{ env.IMAGE_NAME }}:latest
             
-            # Update Prod
+            # 2. Update Prod
             cd tempo-pg-prod
-            # Ensure docker-compose.yml is up to date (we can scp it or git pull, but simple pull is easier if repo is cloned)
-            # Assuming we just use the image, we can just restart
             docker compose down
             docker compose up -d
             
-            # Cleanup
+            # 3. Automatic Changelog Injection to DB
+            # We extract description from CHANGELOG.md (everything between first two ## lines)
+            # This part is better handled by a script, but we'll do a simple bash trick here
+            VERSION=$(grep -m 1 "APP_VERSION =" ../tempo-pg-prod/constants.tsx | cut -d"'" -f2)
+            DESC=$(sed -n '/## \['$VERSION'\]/,/## \[ /p' ../tempo-pg-prod/CHANGELOG.md | sed '1d;$d' | tr '\n' ' ')
+            
+            docker exec -i mautrix-telegram-db-1 psql -U tempo -d tempo -c \
+            "INSERT INTO changelogs (version, release_date, description_ru) VALUES ('$VERSION', NOW(), '$DESC') ON CONFLICT (version) DO NOTHING;"
+            
             docker image prune -f
