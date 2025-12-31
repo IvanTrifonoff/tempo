@@ -31,9 +31,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # Install & Build Frontend to check for errors
       - name: Install & Build
         run: |
-          npm ci
+          npm install --legacy-peer-deps
           npm run build
 
   build-push-docker:
