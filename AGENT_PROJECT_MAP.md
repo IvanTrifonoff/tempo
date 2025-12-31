@@ -7,39 +7,49 @@ tempo/extracted/tempo-main/
 ├── App.tsx                 # Точка входа UI (собирает хуки и компоненты)
 ├── constants.tsx           # Версия приложения (APP_VERSION)
 ├── i18n.ts                 # Локализация (EN, RU, ES)
-├── index.css               # Глобальные стили (Tailwind imports)
-├── tailwind.config.js      # Конфиг стилей
-├── vite.config.ts          # Сборщик
+├── vite.config.ts          # Сборщик (включен PWA)
 ├── hooks/                  # [NEW] Кастомные хуки
 │   ├── useAudioContext.ts  # Логика AudioContext (iOS fix)
-│   ├── usePlayer.ts        # Состояние плеера, MediaSession
+│   ├── usePlayer.ts        # Состояние плеера
 │   └── useMetronome.ts     # Генерация звука метронома
-├── components/             # UI Компоненты
-│   ├── EditTrackModal.tsx  # Модалка редактирования
-│   ├── UpdateNotification.tsx # Окно обновления
-│   ├── AuthModal.tsx       # Вход/Регистрация
-│   ├── Icons.tsx           # SVG иконки
-│   └── ...
-├── server/                 # Бэкенд (Node.js)
-│   ├── server.js           # Точка входа (Express + PG)
-│   ├── schema.sql          # Схема БД
-│   ├── email.js            # Отправка почты (SMTP)
-│   └── tests/              # Интеграционные тесты
-│       └── api.test.js
-├── DESIGN_SYSTEM.md        # Гайдлайны по дизайну
-└── AGENT_*.md              # Документация агента
+├── server/                 # Бэкенд (Node.js + Express)
+│   ├── server.js           # Точка входа (Express setup only)
+│   ├── docker-entrypoint.sh # Скрипт запуска (Migrate -> Start)
+│   ├── config/             # Конфигурация
+│   │   └── logger.js       # Winston Logger
+│   ├── db/                 # База данных
+│   │   └── index.js        # PG Pool
+│   ├── middleware/         # Middleware
+│   │   ├── auth.js         # JWT Auth
+│   │   ├── errorHandler.js # Central Error Handling
+│   │   └── upload.js       # Multer
+│   ├── controllers/        # Бизнес-логика
+│   │   ├── authController.js
+│   │   ├── tracksController.js
+│   │   ├── playlistsController.js
+│   │   └── usersController.js
+│   ├── routes/             # Маршрутизация
+│   │   └── ...
+│   └── migrations/         # Миграции БД (node-pg-migrate)
+├── .github/workflows/      # CI/CD
+│   └── deploy.yml          # GitHub Actions Pipeline
+└── TECH_DEBT.md            # Технический долг
 ```
 
 ## 2. API Эндпоинты
 
-*   `GET /api/tracks` - Список треков.
-*   `GET /api/playlists` - Список плейлистов (оптимизированный запрос).
-*   `POST /api/auth/login` - Вход (User + Token).
-*   `GET /api/changelog/latest` - Описание обновления.
-*   `PATCH /api/tracks/:id` - Редактирование трека.
+Все маршруты начинаются с `/api/`.
+*   **Auth:** `/auth/login`, `/auth/register`, `/auth/me`
+*   **Tracks:** `/tracks` (GET, POST, PATCH, DELETE)
+*   **Playlists:** `/playlists`
+*   **Users:** `/admin/users`
 
 ## 3. Инфраструктура
 
-*   **Docker:** Контейнер запускается от пользователя `node` (non-root).
-*   **Database:** PostgreSQL (`mautrix-telegram-db-1`).
-*   **Environment:** Все секреты в `.env`.
+*   **Docker:** 
+    *   Образ на базе `node:20-alpine`.
+    *   Пользователь `node` (non-root).
+    *   Автоматические миграции при старте.
+*   **Database:** PostgreSQL.
+*   **Logging:** Winston (JSON format).
+*   **Optimization:** Gzip compression, Static Caching (1y).
