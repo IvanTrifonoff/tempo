@@ -1,63 +1,27 @@
-# Эксплуатация и Тестирование (Ops & QA)
+# Операции и Тестирование (Ops & Testing)
 
-## 1. Работа с Базой Данных (PostgreSQL)
+## 🐳 Docker Команды
+- **Пересборка (Test):** `sudo docker compose up -d --build`
+- **Просмотр логов:** `sudo docker logs -f tempo-test-pg`
+- **Очистка мусора:** `sudo docker system prune -f`
 
-База данных `tempo` находится в контейнере `mautrix-telegram-db-1`.
+## 🗄 База Данных (Миграции)
+Всегда делай это внутри контейнера или через `npm run`:
+- **Создать новую миграцию:** `node-pg-migrate create my_migration_name`
+- **Накатить:** `npm run migrate up`
+- **Откатить:** `npm run migrate down`
 
-### Бекап (Backup)
-Создание дампа SQL:
-```bash
-sudo docker exec -t mautrix-telegram-db-1 pg_dump -U tempo tempo > tempo_backup_$(date +%Y%m%d).sql
-```
+*Примечание:* Контейнер автоматически накатывает миграции при старте через `docker-entrypoint.sh`.
 
-### Восстановление (Restore)
-**Внимание:** Это уничтожит текущие данные!
-```bash
-cat tempo_backup.sql | sudo docker exec -i mautrix-telegram-db-1 psql -U tempo tempo
-```
+## 🧪 Тестирование
+Интеграционные тесты API находятся в `server/tests/`.
+- **Запуск:** `sudo docker exec -i tempo-test-pg npm test`
 
-### Миграция схемы
-При изменении `server/schema.sql`:
-```bash
-sudo docker cp server/schema.sql mautrix-telegram-db-1:/tmp/schema.sql
-sudo docker exec -i mautrix-telegram-db-1 psql -U tempo -d tempo -f /tmp/schema.sql
-```
+## 📦 Деплой (Manual)
+Если CI/CD не настроен:
+1. Собери архив: `tar -czf deploy.tar.gz .`
+2. Отправь на сервер: `scp deploy.tar.gz admssh@82.202.141.81:~/`
+3. Распакуй и перезапусти: `tar -xzf ... && docker compose up -d --build`
 
-## 2. Автоматическое тестирование
-
-В проекте настроены интеграционные тесты API (`server/tests/api.test.js`).
-Запускать их нужно **внутри контейнера** (test или prod):
-
-```bash
-sudo docker exec -i tempo-test-pg npm test
-```
-Если тесты не проходят — деплой запрещен.
-
-## 3. Чек-лист ручного тестирования (QA Manual)
-
-Этот список обязателен к прохождению перед релизом, так как автотесты не покрывают аудио и iOS специфику.
-
-### A. Ролевая модель и Редактирование
-1.  [ ] **Admin:** Войти -> Нажать карандаш у трека -> Изменить название/BPM -> Сохранить. Изменения должны отразиться мгновенно.
-2.  [ ] **Coach:** Проверить, что кнопка редактирования (карандаш) видна только для **своих** треков.
-3.  [ ] **Student:** Не должен видеть кнопок редактирования.
-
-### B. Аудио и iOS (Самое сложное)
-*Тестировать на реальном iPhone (Safari) и Android.*
-1.  [ ] **Фон:** Включить трек -> Свернуть приложение -> Музыка должна играть.
-2.  [ ] **Lock Screen:** Заблокировать телефон -> Должны работать кнопки паузы/переключения.
-3.  [ ] **Coach Mode:** Включить "Свисток" -> Включить "Хлопки" -> Хлопнуть дважды -> Музыка должна встать на паузу.
-4.  [ ] **Метроном:** Включить -> Звук должен быть "woodblock" (деревянный), а не электронный писк.
-
-### C. PWA и Обновление
-1.  [ ] **Update:** При деплое новой версии (изменение `APP_VERSION`) должно появиться окно "Update Installed" с чейнджлогом.
-2.  [ ] **Offline:** Выключить интернет -> Приложение должно открываться.
-
-## 4. Экстренные ситуации (Troubleshooting)
-
-*   **API 500 Error:**
-    `sudo docker logs tempo-app --tail 50` — проверь подключение к БД (Postgres).
-*   **Письма не уходят:**
-    Проверь `SMTP_PASS` в `.env`. Mail.ru может сбрасывать пароли приложений.
-*   **Тесты падают на Changelog:**
-    Убедись, что таблица `changelogs` существует и не пуста.
+## 🧹 Авто-очистка
+На сервере настроен крон `/etc/cron.daily/docker-cleanup`, который чистит старые образы и кэш билдов (старше 24ч).
