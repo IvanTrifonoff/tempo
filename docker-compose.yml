@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   app:
-    build: .
+    image: ghcr.io/ivantrifonoff/tempo.trfnv.ru:latest
     container_name: ${CONTAINER_NAME:-tempo-app}
     restart: always
     ports:
@@ -16,6 +16,7 @@ services:
       - SMTP_USER=${SMTP_USER}
       - SMTP_PASS=${SMTP_PASS}
       - PUBLIC_DOMAIN=${PUBLIC_DOMAIN}
+      - NODE_ENV=production
     volumes:
       - tempo-uploads:/app/server/uploads
     networks:
