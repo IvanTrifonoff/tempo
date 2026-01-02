@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   app:
-    image: ghcr.io/ivantrifonoff/tempo.trfnv.ru:latest
+    build: .
     container_name: ${CONTAINER_NAME:-tempo-app}
     restart: always
     ports:

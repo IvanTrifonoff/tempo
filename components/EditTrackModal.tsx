@@ -1,20 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { Track, DanceStyle } from '../types';
+import { Track, DanceStyle, User } from '../types';
 import { useTranslation } from 'react-i18next';
 
 interface EditTrackModalProps {
   track: Track;
+  user: User | null;
   onClose: () => void;
   onSave: (id: string, data: Partial<Track>) => Promise<void>;
 }
 
-const EditTrackModal: React.FC<EditTrackModalProps> = ({ track, onClose, onSave }) => {
+const EditTrackModal: React.FC<EditTrackModalProps> = ({ track, user, onClose, onSave }) => {
   const { t } = useTranslation();
   const [formData, setFormData] = useState({
     title: track.title,
     artist: track.artist,
     bpm: track.bpm,
-    style: track.style
+    style: track.style,
+    isPublic: track.isPublic || false
   });
   const [isSaving, setIsSaving] = useState(false);
 
@@ -35,7 +37,8 @@ const EditTrackModal: React.FC<EditTrackModalProps> = ({ track, onClose, onSave 
         title: formData.title,
         artist: formData.artist,
         bpm: Number(formData.bpm),
-        style: formData.style
+        style: formData.style,
+        isPublic: formData.isPublic
       });
       onClose();
     } catch (error) {
@@ -48,7 +51,7 @@ const EditTrackModal: React.FC<EditTrackModalProps> = ({ track, onClose, onSave 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/95 p-4 animate-in fade-in duration-200">
       <div 
-        className="bg-[#1a1a1a] border border-white/10 p-6 rounded-[2rem] w-[90%] max-w-sm shadow-2xl animate-in zoom-in-95 duration-200 relative"
+        className="bg-[#1a1a1a] border border-white/10 p-6 rounded-[2.5rem] w-[90%] max-w-sm shadow-2xl animate-in zoom-in-95 duration-200 relative"
         onClick={e => e.stopPropagation()}
       >
         <h2 className="text-2xl font-serif text-white font-bold mb-6 text-center">{t('edit.title')}</h2>
@@ -113,6 +116,22 @@ const EditTrackModal: React.FC<EditTrackModalProps> = ({ track, onClose, onSave 
                 </div>
             </div>
           </div>
+
+          {/* Demo/Public Checkbox - Admin Only */}
+          {user?.role === 'admin' && (
+            <div className="flex items-center gap-3 p-3 bg-yellow-500/5 rounded-xl border border-yellow-500/10">
+                <input 
+                    type="checkbox" 
+                    id="isPublic"
+                    checked={formData.isPublic}
+                    onChange={e => setFormData({...formData, isPublic: e.target.checked})}
+                    className="w-5 h-5 accent-yellow-500 rounded border-white/10"
+                />
+                <label htmlFor="isPublic" className="text-sm font-bold text-yellow-500 uppercase tracking-wider cursor-pointer select-none">
+                    Demo Track (Visible to everyone)
+                </label>
+            </div>
+          )}
 
           <div className="pt-4 flex gap-3">
             <button

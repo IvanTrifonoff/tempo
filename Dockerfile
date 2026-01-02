@@ -1,7 +1,7 @@
 # Stage 1: Build Frontend
 FROM node:20-alpine as builder
 WORKDIR /app
-COPY package*.json ./
+COPY package*.json ./ 
 RUN npm install --legacy-peer-deps
 COPY . .
 RUN npm run build
@@ -19,13 +19,15 @@ COPY server/ ./server/
 COPY --from=builder /app/dist ./dist
 
 # Create uploads and set permissions
-# Note: If using host volumes, ensure UID 1000 has write access on host
 RUN mkdir -p /app/server/uploads && \
     chown -R node:node /app
+
+# Copy entrypoint script
+COPY --chmod=755 server/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 USER node
 WORKDIR /app/server
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["/usr/local/bin/docker-entrypoint.sh"]
