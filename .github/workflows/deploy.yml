@@ -27,6 +27,22 @@ jobs:
   build-and-test:
     needs: validate
     runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: tempo
+          POSTGRES_PASSWORD: tempo_password
+          POSTGRES_DB: tempo_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -36,7 +52,15 @@ jobs:
           npm install --legacy-peer-deps
           cd server && npm install
 
+      - name: Run Schema
+        run: |
+          # Применяем схему БД для тестов
+          PGPASSWORD=tempo_password psql -h localhost -U tempo -d tempo_test -f server/schema.sql
+
       - name: Run Tests
+        env:
+          DATABASE_URL: postgres://tempo:tempo_password@localhost:5432/tempo_test
+          JWT_SECRET: test-secret
         run: |
           cd server && npm test
 
@@ -117,11 +141,7 @@ jobs:
             # 2. Update Environment
             cd ${{ env.TARGET_DIR }}
             
-            # Обновляем тег в docker-compose.yml если он там захардкожен (или используем ENV)
-            # В нашем случае docker-compose.yml использует build: ., поэтому нам нужно 
-            # либо поправить docker-compose.yml на использование image, либо оставить как есть.
-            # Но для CI/CD ПРАВИЛЬНО использовать образ из реестра.
-            
+            # Обновляем тег в docker-compose.yml если он там захардкожен
             sed -i "s|image: .*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DOCKER_TAG }}|g" docker-compose.yml || true
             
             docker compose down
