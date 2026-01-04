@@ -2,9 +2,9 @@ import db from '../db/index.js';
 import fs from 'fs';
 import path from 'path';
 import { UPLOADS_PATH } from '../middleware/upload.js';
-import jwt from 'jsonwebtoken';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { TrackVisibility } from '../services/trackService.js';
+import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
@@ -12,7 +12,6 @@ export const getTracks = asyncHandler(async (req, res) => {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
     let user = null;
-    
     if (token) {
         try { user = jwt.verify(token, JWT_SECRET); } catch(e) {}
     }
@@ -34,45 +33,29 @@ export const getTracks = asyncHandler(async (req, res) => {
 });
 
 export const createTrack = asyncHandler(async (req, res) => {
-    if (req.user.role === 'student') return res.status(403).json({ error: 'Students cannot upload' });
-    
+    if (req.user.role === 'student') return res.status(403).json({ error: 'Denied' });
     const { title, artist, style, bpm, isPublic } = req.body;
     const url = req.file ? `/uploads/${req.file.filename}` : (req.body.url || '');
-
-    const newTrackId = Date.now().toString();
-    const ownerId = req.user.id;
-    
-    // Только админ может делать трек публичным при создании (опционально)
+    const newId = Date.now().toString();
     const finalIsPublic = req.user.role === 'admin' ? (isPublic === 'true' || isPublic === true) : false;
 
     await db.query(
         `INSERT INTO tracks (id, title, artist, style, bpm, url, owner_id, is_public)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [newTrackId, title, artist, style, Number(bpm), url, ownerId, finalIsPublic]
+        [newId, title, artist, style, Number(bpm), url, req.user.id, finalIsPublic]
     );
-
-    res.json({
-        id: newTrackId,
-        title, artist, style, url, ownerId, 
-        isPublic: finalIsPublic,
-        bpm: Number(bpm),
-        isPreloaded: false
-    });
+    res.json({ id: newId, title, artist, style, bpm: Number(bpm), url, isPublic: finalIsPublic });
 });
 
 export const updateTrack = asyncHandler(async (req, res) => {
     const { rows } = await db.query('SELECT * FROM tracks WHERE id = $1', [req.params.id]);
     if (rows.length === 0) return res.status(404).json({error: 'Not found'});
     const track = rows[0];
-    
-    if (req.user.role !== 'admin' && track.owner_id !== req.user.id) {
-        return res.status(403).json({ error: 'Denied' });
-    }
+    if (req.user.role !== 'admin' && track.owner_id !== req.user.id) return res.status(403).json({ error: 'Denied' });
 
     const updates = [];
     const values = [];
     let idx = 1;
-
     const allowed = ['title', 'artist', 'bpm', 'style'];
     if (req.user.role === 'admin') allowed.push('isPublic');
 
@@ -83,55 +66,30 @@ export const updateTrack = asyncHandler(async (req, res) => {
             values.push(req.body[key]);
         }
     }
-    
     if (updates.length > 0) {
         values.push(req.params.id);
-        const { rows: updatedRows } = await db.query(
-            `UPDATE tracks SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`,
-            values
-        );
-        const updated = updatedRows[0];
-        res.json({
-            id: updated.id,
-            title: updated.title,
-            artist: updated.artist,
-            style: updated.style,
-            bpm: updated.bpm,
-            url: updated.url,
-            ownerId: updated.owner_id,
-            isPublic: updated.is_public
-        });
-    } else {
-        res.json(track);
-    }
+        const { rows: updatedRows } = await db.query(`UPDATE tracks SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`, values);
+        const u = updatedRows[0];
+        res.json({ id: u.id, title: u.title, artist: u.artist, bpm: u.bpm, style: u.style, isPublic: u.is_public });
+    } else res.json(track);
 });
 
 export const deleteTrack = asyncHandler(async (req, res) => {
     const { rows } = await db.query('SELECT * FROM tracks WHERE id = $1', [req.params.id]);
-    if (rows.length === 0) return res.status(404).json({error: 'Track not found'});
-    const track = rows[0];
-
-    if (req.user.role !== 'admin' && track.owner_id !== req.user.id) {
-        return res.status(403).json({ error: 'Denied' });
+    if (rows.length === 0) return res.status(404).json({error: 'Not found'});
+    if (req.user.role !== 'admin' && rows[0].owner_id !== req.user.id) return res.status(403).json({ error: 'Denied' });
+    if (rows[0].url.startsWith('/uploads/')) {
+        try { fs.unlinkSync(path.join(UPLOADS_PATH, path.basename(rows[0].url))); } catch(e) {}
     }
-
-    if (track.url && track.url.startsWith('/uploads/')) {
-         try { fs.unlinkSync(path.join(UPLOADS_PATH, path.basename(track.url))); } catch (e) {}
-    }
-    
     await db.query('DELETE FROM tracks WHERE id = $1', [req.params.id]);
-    res.json({success: true});
+    res.json({ success: true });
 });
 
 export const toggleFavorite = asyncHandler(async (req, res) => {
-    const userId = req.user.id;
     const { trackId } = req.body;
-    const check = await db.query('SELECT 1 FROM user_favorites WHERE user_id = $1 AND track_id = $2', [userId, trackId]);
-    if (check.rows.length > 0) {
-        await db.query('DELETE FROM user_favorites WHERE user_id = $1 AND track_id = $2', [userId, trackId]);
-    } else {
-        await db.query('INSERT INTO user_favorites (user_id, track_id) VALUES ($1, $2)', [userId, trackId]);
-    }
-    const favsRes = await db.query('SELECT track_id FROM user_favorites WHERE user_id = $1', [userId]);
-    res.json(favsRes.rows.map(r => r.track_id));
+    const check = await db.query('SELECT 1 FROM user_favorites WHERE user_id = $1 AND track_id = $2', [req.user.id, trackId]);
+    if (check.rows.length > 0) await db.query('DELETE FROM user_favorites WHERE user_id = $1 AND track_id = $2', [req.user.id, trackId]);
+    else await db.query('INSERT INTO user_favorites (user_id, track_id) VALUES ($1, $2)', [req.user.id, trackId]);
+    const favs = await db.query('SELECT track_id FROM user_favorites WHERE user_id = $1', [req.user.id]);
+    res.json(favs.rows.map(r => r.track_id));
 });

@@ -2,12 +2,12 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
   workflow_dispatch:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: ivantrifonoff/tempo.trfnv.ru
 
 jobs:
   validate:
@@ -31,9 +31,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install & Build
+      - name: Install Dependencies
         run: |
           npm install --legacy-peer-deps
+          cd server && npm install
+
+      - name: Run Tests
+        run: |
+          cd server && npm test
+
+      - name: Build Frontend
+        run: |
           npm run build
 
   build-push-docker:
@@ -58,7 +66,9 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: type=raw,value=latest
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=test,enable=${{ github.ref == 'refs/heads/dev' }}
 
       - name: Build and push
         uses: docker/build-push-action@v4
@@ -74,14 +84,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Copy docker-compose.yml to server
+      - name: Set Environment Variables
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "TARGET_DIR=tempo-pg-prod" >> $GITHUB_ENV
+            echo "DOCKER_TAG=latest" >> $GITHUB_ENV
+          else
+            echo "TARGET_DIR=tempo-pg-test" >> $GITHUB_ENV
+            echo "DOCKER_TAG=test" >> $GITHUB_ENV
+          fi
+
+      - name: Copy Config Files to server
         uses: appleboy/scp-action@v0.1.4
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
-          source: "docker-compose.yml"
-          target: "tempo-pg-prod/"
+          source: "docker-compose.yml,constants.tsx,CHANGELOG.md"
+          target: "${{ env.TARGET_DIR }}/"
 
       - name: Deploy & Sync Changelog
         uses: appleboy/ssh-action@v0.1.10
@@ -92,17 +112,28 @@ jobs:
           script: |
             # 1. Login & Pull
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            docker pull ghcr.io/${{ env.IMAGE_NAME }}:latest
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DOCKER_TAG }}
             
-            # 2. Update Prod
-            cd tempo-pg-prod
+            # 2. Update Environment
+            cd ${{ env.TARGET_DIR }}
+            
+            # Обновляем тег в docker-compose.yml если он там захардкожен (или используем ENV)
+            # В нашем случае docker-compose.yml использует build: ., поэтому нам нужно 
+            # либо поправить docker-compose.yml на использование image, либо оставить как есть.
+            # Но для CI/CD ПРАВИЛЬНО использовать образ из реестра.
+            
+            sed -i "s|image: .*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DOCKER_TAG }}|g" docker-compose.yml || true
+            
             docker compose down
             docker compose up -d
             
             # 3. Automatic Changelog Injection
             VERSION=$(grep -m 1 "APP_VERSION =" constants.tsx | cut -d"'" -f2)
-            DESC=$(sed -n '/## \['$VERSION'\]/,/## \[/p' CHANGELOG.md | sed '1d;$d' | tr '\n' ' ')
-            docker exec -i mautrix-telegram-db-1 psql -U tempo -d tempo -c \
-            "INSERT INTO changelogs (version, release_date, description_ru) VALUES ('$VERSION', NOW(), '$DESC') ON CONFLICT (version) DO NOTHING;"
+            DESC=$(sed -n '/## \['$VERSION'\]/,/## \[/{p' CHANGELOG.md | sed '1d;$d' | tr '\n' ' ')
+            
+            if [ ! -z "$VERSION" ]; then
+              docker exec -i mautrix-telegram-db-1 psql -U tempo -d tempo -c \
+              "INSERT INTO changelogs (version, release_date, description_ru) VALUES ('$VERSION', NOW(), '$DESC') ON CONFLICT (version) DO NOTHING;"
+            fi
             
             docker image prune -f

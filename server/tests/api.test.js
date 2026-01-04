@@ -1,6 +1,7 @@
 import { jest } from '@jest/globals';
 import request from 'supertest';
-import { app, pool } from '../server.js';
+import { app } from '../server.js';
+import db from '../db/index.js';
 
 describe('Tempo API', () => {
   let token;
@@ -13,13 +14,13 @@ describe('Tempo API', () => {
   jest.setTimeout(10000);
 
   beforeAll(async () => {
-      await pool.query("INSERT INTO changelogs (version, description_ru, description_en) VALUES ('0.0.0-test', 'Test', 'Test') ON CONFLICT DO NOTHING");
+      await db.query("INSERT INTO changelogs (version, description_ru, description_en) VALUES ('0.0.0-test', 'Test', 'Test') ON CONFLICT DO NOTHING");
   });
 
   afterAll(async () => {
     // Cleanup
-    await pool.query("DELETE FROM users WHERE email LIKE 'test_%@example.com'");
-    await pool.end();
+    await db.query("DELETE FROM users WHERE email LIKE 'test_%@example.com'");
+    await db.pool.end();
   });
 
   test('POST /api/auth/register - should register a new coach', async () => {
@@ -31,7 +32,7 @@ describe('Tempo API', () => {
     expect(res.body).toHaveProperty('message', 'Email sent');
     
     // Manually verify user in DB for testing login
-    await pool.query("UPDATE users SET is_verified = true WHERE email = $1", [testUser.email]);
+    await db.query("UPDATE users SET is_verified = true WHERE email = $1", [testUser.email]);
   });
 
   test('POST /api/auth/login - should login and return token', async () => {
@@ -52,6 +53,19 @@ describe('Tempo API', () => {
 
     expect(res.statusCode).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
+  });
+
+  test('GET /api/admin/users - should return users list for admin', async () => {
+      // Promote test user to admin
+      await db.query("UPDATE users SET role = 'admin' WHERE email = $1", [testUser.email]);
+      
+      const res = await request(app)
+        .get('/api/admin/users')
+        .set('Authorization', `Bearer ${token}`);
+      
+      expect(res.statusCode).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBeGreaterThan(0);
   });
   
   test('GET /api/changelog/latest - should return latest version', async () => {
