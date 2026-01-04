@@ -2,8 +2,13 @@ import db from '../db/index.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 
 export const getUsers = asyncHandler(async (req, res) => {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Denied' });
+    console.log(`[DEBUG] getUsers called by user: ${req.user.email}, role: ${req.user.role}`);
+    if (req.user.role !== 'admin') {
+        console.log(`[DEBUG] Access denied for ${req.user.email}`);
+        return res.status(403).json({ error: 'Denied' });
+    }
     const { rows } = await db.query('SELECT * FROM users ORDER BY created_at DESC');
+    console.log(`[DEBUG] Returning ${rows.length} users`);
     res.json(rows.map(u => ({
         id: u.id,
         email: u.email,
