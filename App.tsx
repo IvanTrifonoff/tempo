@@ -15,8 +15,54 @@ import UserManagementModal from './components/UserManagementModal';
 import ClapDetector from './components/ClapDetector';
 import ReloadPrompt from './components/ReloadPrompt';
 import EditTrackModal from './components/EditTrackModal';
+import { SafeIsland } from './components/safe-island/SafeIsland';
 
 import UpdateNotification from './components/UpdateNotification';
+
+const DEMO_SAFE_JSON = {
+  featureId: "demo-banner",
+  version: "1.0",
+  root: {
+    id: "root-container",
+    type: "container",
+    style: { background: "bg-indigo-900", padding: "medium", shadow: true },
+    props: { layout: "row", align: "center", justify: "between", gap: "medium" },
+    children: [
+      {
+        id: "icon-wrap",
+        type: "container",
+        props: { layout: "col", align: "center" },
+        children: [
+           { id: "icn", type: "icon", props: { name: "ShieldCheckIcon", color: "white" } }
+        ]
+      },
+      {
+        id: "text-block",
+        type: "container",
+        style: { width: "full" },
+        props: {},
+        children: [
+          {
+            id: "title",
+            type: "text",
+            props: { content: "Safe Protocol Active", variant: "h3" }
+          },
+          {
+             id: "subtitle",
+             type: "text",
+             props: { content: "This UI is rendered entirely from validated JSON (SDUI).", variant: "caption" }
+          }
+        ]
+      },
+      {
+        id: "btn",
+        type: "button",
+        props: { label: "Test Action", variant: "secondary" },
+        actionId: "test_safe_click"
+      }
+    ]
+  }
+};
 
 const App: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -701,6 +747,13 @@ const App: React.FC = () => {
               </div>
             );
           })}
+        </div>
+
+        <div className="mt-8">
+            <SafeIsland 
+                data={DEMO_SAFE_JSON} 
+                onAction={(id) => alert(`Safe Action Triggered: ${id}`)} 
+            />
         </div>
       </main>
 
