@@ -30,4 +30,4 @@ WORKDIR /app/server
 
 EXPOSE 3000
 
-CMD ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["node", "-u", "server.js"]
