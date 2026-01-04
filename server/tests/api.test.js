@@ -56,12 +56,18 @@ describe('Tempo API', () => {
   });
 
   test('GET /api/admin/users - should return users list for admin', async () => {
-      // Promote test user to admin
+      // Promote test user to admin in DB
       await db.query("UPDATE users SET role = 'admin' WHERE email = $1", [testUser.email]);
       
+      // IMPORTANT: Login again to get a NEW token with the updated role
+      const loginRes = await request(app)
+        .post('/api/auth/login')
+        .send(testUser);
+      const adminToken = loginRes.body.token;
+
       const res = await request(app)
         .get('/api/admin/users')
-        .set('Authorization', `Bearer ${token}`);
+        .set('Authorization', `Bearer ${adminToken}`);
       
       expect(res.statusCode).toBe(200);
       expect(Array.isArray(res.body)).toBe(true);
