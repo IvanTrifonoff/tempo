@@ -3,6 +3,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import cors from 'cors';
 import dotenv from 'dotenv';
+dotenv.config(); // Load env vars before importing routes that use them
+
 import compression from 'compression';
 import { transporter } from './email.js';
 import db from './db/index.js';
@@ -14,7 +16,6 @@ import trackRoutes from './routes/tracks.js';
 import adminRoutes from './routes/admin.js';
 import { verifyEmail } from './controllers/authController.js';
 
-dotenv.config();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3000;

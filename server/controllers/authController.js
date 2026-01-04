@@ -38,10 +38,15 @@ export const register = asyncHandler(async (req, res) => {
 
 export const login = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
+    console.log(`[DEBUG] Login attempt for: ${email}`);
     const { rows } = await db.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [email]);
     const user = rows[0];
+    
     if (!user || !(await bcrypt.compare(password, user.password))) return res.status(400).json({ error: 'Invalid credentials' });
     if (!user.is_verified) return res.status(403).json({ error: 'Verify email' });
+    
+    console.log(`[DEBUG] User found: ${user.email}, Role in DB: ${user.role}`);
+
     const favs = await db.query('SELECT track_id FROM user_favorites WHERE user_id = $1', [user.id]);
     const token = jwt.sign({ id: user.id, email: user.email, role: user.role, coachId: user.coach_id }, JWT_SECRET);
     res.json({ user: mapUser(user, favs.rows.map(r => r.track_id)), token });
