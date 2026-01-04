@@ -149,7 +149,7 @@ jobs:
             
             # 3. Automatic Changelog Injection
             VERSION=$(grep -m 1 "APP_VERSION =" constants.tsx | cut -d"'" -f2)
-            DESC=$(sed -n '/## \['$VERSION'\]/,/## \[/{p' CHANGELOG.md | sed '1d;$d' | tr '\n' ' ')
+            DESC=$(sed -n '/## \['$VERSION'\]/,/## \[/ {p' CHANGELOG.md | sed '1d;$d' | tr '\n' ' ')
             
             if [ ! -z "$VERSION" ]; then
               docker exec -i mautrix-telegram-db-1 psql -U tempo -d tempo -c \

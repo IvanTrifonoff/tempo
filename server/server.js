@@ -3,45 +3,55 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import cors from 'cors';
 import dotenv from 'dotenv';
-dotenv.config(); // Load env vars before importing routes that use them
-
 import compression from 'compression';
 import { transporter } from './email.js';
 import db from './db/index.js';
 import logger from './config/logger.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
+// Routes
 import authRoutes from './routes/auth.js';
 import trackRoutes from './routes/tracks.js';
-import adminRoutes from './routes/admin.js';
+import playlistRoutes from './routes/playlists.js';
+import userRoutes from './routes/users.js';
 import { verifyEmail } from './controllers/authController.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const app = express();
 const PORT = process.env.PORT || 3000;
+const UPLOADS_PATH = path.join(__dirname, 'uploads');
 
 app.use(compression());
 app.use(cors());
 app.use(express.json());
 
-// Request Logger
+// Request Logger (From Dev)
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] Request: ${req.method} ${req.url}`);
     next();
 });
 
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(UPLOADS_PATH));
 app.use(express.static(path.join(__dirname, '../dist'), { maxAge: '1y', etag: false }));
 
+// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/tracks', trackRoutes);
-app.use('/api/admin', adminRoutes);
+app.use('/api/playlists', playlistRoutes);
+app.use('/api/admin/users', userRoutes);
+app.use('/api/user', userRoutes);
+
 app.get('/verify', verifyEmail);
 
 app.get('/api/changelog/latest', async (req, res, next) => {
     try {
         const { rows } = await db.query('SELECT * FROM changelogs ORDER BY release_date DESC LIMIT 1');
-        res.json(rows[0] || null);
+        if (rows.length > 0) res.json(rows[0]);
+        else res.json(null);
     } catch (err) { next(err); }
 });
 
@@ -52,10 +62,14 @@ app.get('*', (req, res) => {
 
 app.use(errorHandler);
 
+export { app };
+
 if (process.env.NODE_ENV !== 'test') {
-    app.listen(PORT, '0.0.0.0', () => {
-        logger.info(`Server running on port ${PORT}`);
-        transporter.verify(err => err ? logger.error("SMTP Error: " + err.message) : logger.info("SMTP Ready"));
+    app.listen(PORT, '0.0.0.0', async () => {
+      logger.info(`Server running on port ${PORT}`);
+      transporter.verify((error) => {
+        if (error) logger.error("SMTP Error: " + error.message);
+        else logger.info("SMTP Ready");
+      });
     });
 }
-export { app };
