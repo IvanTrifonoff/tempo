@@ -21,7 +21,8 @@ export const register = asyncHandler(async (req, res) => {
     const { email, password, inviteCode } = req.body;
     if (!email || !password) return res.status(400).json({ error: 'Required fields missing' });
     
-    const userCheck = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+    const lowerEmail = email.toLowerCase();
+    const userCheck = await db.query('SELECT id FROM users WHERE email = $1', [lowerEmail]);
     if (userCheck.rows.length > 0) return res.status(400).json({ error: 'User exists' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -30,7 +31,7 @@ export const register = asyncHandler(async (req, res) => {
     let isVerified = false;
     let verificationToken = crypto.randomBytes(32).toString('hex');
 
-    if (email === 'admin@trfnv.ru') {
+    if (lowerEmail === 'admin@trfnv.ru') {
          role = 'admin';
          isVerified = true;
     } else if (inviteCode) {
@@ -46,13 +47,13 @@ export const register = asyncHandler(async (req, res) => {
     const newUser = await db.query(
         `INSERT INTO users (id, email, password, role, coach_id, is_verified, verification_token)
          VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-        [newId, email, hashedPassword, role, coachId, isVerified, isVerified ? null : verificationToken]
+        [newId, lowerEmail, hashedPassword, role, coachId, isVerified, isVerified ? null : verificationToken]
     );
     
     const u = newUser.rows[0];
 
     if (!isVerified) {
-        await sendVerificationEmail(email, verificationToken);
+        await sendVerificationEmail(lowerEmail, verificationToken);
         return res.json({ message: 'Email sent' });
     }
     
@@ -65,7 +66,8 @@ export const register = asyncHandler(async (req, res) => {
 
 export const login = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
-    const { rows } = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+    const lowerEmail = email.toLowerCase();
+    const { rows } = await db.query('SELECT * FROM users WHERE email = $1', [lowerEmail]);
     const user = rows[0];
 
     if (!user || !(await bcrypt.compare(password, user.password))) {
