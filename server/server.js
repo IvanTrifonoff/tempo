@@ -29,6 +29,8 @@ app.use(compression());
 app.use(cors());
 app.use(express.json());
 
+app.get('/verify', verifyEmail);
+
 // Request Logger (From Dev)
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] Request: ${req.method} ${req.url}`);
@@ -44,8 +46,6 @@ app.use('/api/tracks', trackRoutes);
 app.use('/api/playlists', playlistRoutes);
 app.use('/api/admin/users', userRoutes);
 app.use('/api/user', userRoutes);
-
-app.get('/verify', verifyEmail);
 
 app.get('/api/changelog/latest', async (req, res, next) => {
     try {

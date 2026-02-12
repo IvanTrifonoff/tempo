@@ -13,9 +13,14 @@ export const transporter = nodemailer.createTransport({
   }
 });
 
-export async function sendVerificationEmail(email, token) {
-  // Use protocol + host from request in a real scenario, but for now fallback to env or test domain
-  const domain = process.env.PUBLIC_DOMAIN || 'https://tempotest.trfnv.ru'; 
+export async function sendVerificationEmail(email, token, host = null) {
+  // Use protocol + host from request if provided, otherwise fallback to env
+  let domain = process.env.PUBLIC_DOMAIN;
+  if (!domain && host) {
+      domain = `https://${host}`;
+  }
+  if (!domain) domain = 'https://tempotest.trfnv.ru'; // Hard fallback
+  
   const link = `${domain}/verify?token=${token}`;
   
   console.log(`Attempting to send email to ${email} via ${transporter.options.host}...`);

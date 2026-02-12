@@ -29,17 +29,20 @@ async function sync() {
         // 2. Get description from CHANGELOG.md
         const changelogContent = fs.readFileSync(changelogPath, 'utf8');
         
-        // Find the start of our version section
-        const header = `## [${version}]`;
-        const startIndex = changelogContent.indexOf(header);
+        // Find the start of our version section using Regex to support optional dates/comments
+        const escapedVersion = version.replace(/\./g, '\\.');
+        const versionRegex = new RegExp(`## \\[${escapedVersion}\\]`);
+        const match = changelogContent.match(versionRegex);
         
-        if (startIndex === -1) {
+        if (!match) {
             console.warn(`⚠️ No entry for version ${version} found in CHANGELOG.md`);
             return;
         }
 
-        // Find the end (next header or end of file)
-        const restOfFile = changelogContent.substring(startIndex + header.length);
+        const startIndex = match.index;
+        const lineEndIndex = changelogContent.indexOf('\n', startIndex);
+        const restOfFile = changelogContent.substring(lineEndIndex).trim();
+        
         const nextHeaderMatch = restOfFile.match(/\n## \[/);
         const description = nextHeaderMatch 
             ? restOfFile.substring(0, nextHeaderMatch.index).trim()

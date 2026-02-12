@@ -43,7 +43,7 @@ export const register = asyncHandler(async (req, res) => {
         } else return res.status(400).json({ error: 'Invalid invite' });
     }
 
-    const newId = Date.now().toString();
+    const newId = crypto.randomUUID();
     const newUser = await db.query(
         `INSERT INTO users (id, email, password, role, coach_id, is_verified, verification_token)
          VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
@@ -53,7 +53,7 @@ export const register = asyncHandler(async (req, res) => {
     const u = newUser.rows[0];
 
     if (!isVerified) {
-        await sendVerificationEmail(lowerEmail, verificationToken);
+        await sendVerificationEmail(lowerEmail, verificationToken, req.headers.host);
         return res.json({ message: 'Email sent' });
     }
     
