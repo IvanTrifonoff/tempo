@@ -958,8 +958,6 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <div className={`fixed inset-0 bg-white z-40 pointer-events-none transition-opacity duration-200 ease-out ${showFlash ? 'opacity-20' : 'opacity-0'}`} />
-      
       {showAdmin && <AdminPanel onAddTrack={handleAddTrack} onClose={() => setShowAdmin(false)} />}
       {showUserManagement && <UserManagementModal onClose={() => setShowUserManagement(false)} />}
       {showAuth && <AuthModal onLogin={handleLogin} onClose={() => setShowAuth(false)} />}
