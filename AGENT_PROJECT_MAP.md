@@ -1,55 +1,30 @@
-# Карта проекта (Project Map)
+# 🗺 Карта проекта (Project Map)
 
-## 1. Структура файлов
+## 📂 Корень проекта
+- `App.tsx` — Главный компонент фронтенда (логика плеера, тренировок, UI).
+- `constants.tsx` — Константы, цвета стилей и **APP_VERSION**.
+- `types.ts` — TypeScript интерфейсы всего проекта.
+- `CHANGELOG.md` — История изменений (источник данных для уведомлений).
+- `Dockerfile` & `docker-compose.yml` — Конфигурация развертывания.
 
-```text
-tempo/extracted/tempo-main/
-├── App.tsx                 # Точка входа UI (собирает хуки и компоненты)
-├── constants.tsx           # Версия приложения (APP_VERSION)
-├── i18n.ts                 # Локализация (EN, RU, ES)
-├── vite.config.ts          # Сборщик (включен PWA)
-├── hooks/                  # [NEW] Кастомные хуки
-│   ├── useAudioContext.ts  # Логика AudioContext (iOS fix)
-│   ├── usePlayer.ts        # Состояние плеера
-│   └── useMetronome.ts     # Генерация звука метронома
-├── server/                 # Бэкенд (Node.js + Express)
-│   ├── server.js           # Точка входа (Express setup only)
-│   ├── docker-entrypoint.sh # Скрипт запуска (Migrate -> Start)
-│   ├── config/             # Конфигурация
-│   │   └── logger.js       # Winston Logger
-│   ├── db/                 # База данных
-│   │   └── index.js        # PG Pool
-│   ├── middleware/         # Middleware
-│   │   ├── auth.js         # JWT Auth
-│   │   ├── errorHandler.js # Central Error Handling
-│   │   └── upload.js       # Multer
-│   ├── controllers/        # Бизнес-логика
-│   │   ├── authController.js
-│   │   ├── tracksController.js
-│   │   ├── playlistsController.js
-│   │   └── usersController.js
-│   ├── routes/             # Маршрутизация
-│   │   └── ...
-│   └── migrations/         # Миграции БД (node-pg-migrate)
-├── .github/workflows/      # CI/CD
-│   └── deploy.yml          # GitHub Actions Pipeline
-└── TECH_DEBT.md            # Технический долг
-```
+## 📂 `server/` (Backend)
+- `server.js` — Основной файл сервера.
+- `controllers/` — Обработчики запросов (auth, tracks, playlists).
+- `routes/` — Определение API эндпоинтов.
+- `middleware/` — Защита (auth.js) и загрузка файлов (upload.js).
+- `db/` — Конфигурация PostgreSQL.
+- `migrations/` — Миграции структуры базы данных.
+- `scripts/` — Утилиты (синхронизация чейнджлога).
+- `uploads/` — Директория для хранения MP3 файлов.
 
-## 2. API Эндпоинты
+## 📂 `components/` (UI)
+- `AdminPanel.tsx` — Управление треками и пользователями.
+- `AuthModal.tsx` — Логин и регистрация.
+- `EditTrackModal.tsx` — Редактирование метаданных треков.
+- `Icons.tsx` — Библиотека SVG иконок.
 
-Все маршруты начинаются с `/api/`.
-*   **Auth:** `/auth/login`, `/auth/register`, `/auth/me`
-*   **Tracks:** `/tracks` (GET, POST, PATCH, DELETE)
-*   **Playlists:** `/playlists`
-*   **Users:** `/admin/users`
-
-## 3. Инфраструктура
-
-*   **Docker:** 
-    *   Образ на базе `node:20-alpine`.
-    *   Пользователь `node` (non-root).
-    *   Автоматические миграции при старте.
-*   **Database:** PostgreSQL.
-*   **Logging:** Winston (JSON format).
-*   **Optimization:** Gzip compression, Static Caching (1y).
+## 📂 `docs/` (Knowledge Base)
+- `ARCHITECTURE.md` — Как это работает под капотом.
+- `API_SPEC.md` — Описание эндпоинтов.
+- `DATABASE_SCHEMA.md` — Структура таблиц БД.
+- `AGENT_CONTEXT.md` — Бортовой журнал и техдолг.
