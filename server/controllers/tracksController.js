@@ -1,6 +1,7 @@
 import db from '../db/index.js';
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { UPLOADS_PATH } from '../middleware/upload.js';
 import jwt from 'jsonwebtoken';
 import { asyncHandler } from '../middleware/errorHandler.js';
@@ -55,19 +56,33 @@ export const getTracks = asyncHandler(async (req, res) => {
 
 export const createTrack = asyncHandler(async (req, res) => {
   if (req.user.role === 'student') return res.status(403).json({ error: 'Students cannot upload' });
+    
     const { title, artist, style, bpm } = req.body;
-    let url = '';
-    if (req.file) url = `/uploads/${req.file.filename}`;
-    else if (req.body.url) url = req.body.url;
+    
+    // Basic validation
+    if (!title || !style || !bpm) {
+      return res.status(400).json({ error: 'Missing required fields (title, style, bpm)' });
+    }
 
-    const newTrackId = Date.now().toString();
+    let url = '';
+    if (req.file) {
+      url = `/uploads/${req.file.filename}`;
+    } else if (req.body.url) {
+      url = req.body.url;
+    }
+
+    if (!url) {
+      return res.status(400).json({ error: 'Audio file or URL is required' });
+    }
+
+    const newTrackId = crypto.randomUUID();
     const ownerId = req.user.id;
     const isPublic = req.user.role === 'admin';
 
     await db.query(
         `INSERT INTO tracks (id, title, artist, style, bpm, url, owner_id, is_public)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [newTrackId, title, artist, style, Number(bpm), url, ownerId, isPublic]
+        [newTrackId, title, artist || 'Unknown Artist', style, Number(bpm), url, ownerId, isPublic]
     );
 
     res.json({
