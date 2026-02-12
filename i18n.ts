@@ -89,6 +89,7 @@ const resources = {
       },
       styles: {
         "Cha-Cha-Cha": "Cha-Cha-Cha",
+        "Samba": "Samba",
         "Slow Waltz": "Slow Waltz",
         "Viennese Waltz": "Viennese Waltz",
         "Tango": "Tango",
@@ -207,6 +208,7 @@ const resources = {
       },
       styles: {
         "Cha-Cha-Cha": "Ча-Ча-Ча",
+        "Samba": "Самба",
         "Slow Waltz": "Медленный Вальс",
         "Viennese Waltz": "Венский Вальс",
         "Tango": "Танго",
@@ -325,6 +327,7 @@ const resources = {
       },
       styles: {
         "Cha-Cha-Cha": "Cha-Cha-Cha",
+        "Samba": "Samba",
         "Slow Waltz": "Vals Lento",
         "Viennese Waltz": "Vals Vienés",
         "Tango": "Tango",

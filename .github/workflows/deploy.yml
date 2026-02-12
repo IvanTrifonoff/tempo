@@ -21,7 +21,7 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Check Version Consistency
+      - name: Check Version Consistency (Mandatory Changelog)
         run: node scripts/check-version.js
 
   build-and-test:
@@ -144,16 +144,12 @@ jobs:
             # Обновляем тег в docker-compose.yml если он там захардкожен
             sed -i "s|image: .*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.DOCKER_TAG }}|g" docker-compose.yml || true
             
-            docker compose down
-            docker compose up -d
+                        docker compose down
             
-            # 3. Automatic Changelog Injection
-            VERSION=$(grep -m 1 "APP_VERSION =" constants.tsx | cut -d"'" -f2)
-            DESC=$(sed -n '/## \['$VERSION'\]/,/## \[/ {p' CHANGELOG.md | sed '1d;$d' | tr '\n' ' ')
+                        docker compose up -d
             
-            if [ ! -z "$VERSION" ]; then
-              docker exec -i mautrix-telegram-db-1 psql -U tempo -d tempo -c \
-              "INSERT INTO changelogs (version, release_date, description_ru) VALUES ('$VERSION', NOW(), '$DESC') ON CONFLICT (version) DO NOTHING;"
-            fi
+                        
             
-            docker image prune -f
+                        docker image prune -f
+            
+            

@@ -31,7 +31,25 @@ dist-ssr
 *.sw?
 
 # Server Data & Uploads
+
 server/uploads/*
+
 !server/uploads/.gitkeep
+
 server/data/*
+
 !server/data/.gitkeep
+
+
+
+# Packages and archives
+
+*.tar.gz
+
+*.zip
+
+._*
+
+.DS_Store
+
+db.json

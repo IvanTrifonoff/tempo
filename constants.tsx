@@ -1,6 +1,6 @@
 import { DanceStyle, Track } from './types';
 
-export const APP_VERSION = '1.0.35';
+export const APP_VERSION = '1.0.43';
 
 export const INITIAL_TRACKS: Track[] = [
   // ... (оставляю как есть)
@@ -17,6 +17,7 @@ export const INITIAL_TRACKS: Track[] = [
 
 export const STYLE_COLORS: Record<DanceStyle, string> = {
   [DanceStyle.CHA_CHA]: 'bg-rose-500',
+  [DanceStyle.SAMBA]: 'bg-orange-500',
   [DanceStyle.WALTZ]: 'bg-blue-500',
   [DanceStyle.VIENNESE]: 'bg-indigo-500',
   [DanceStyle.TANGO]: 'bg-red-700',

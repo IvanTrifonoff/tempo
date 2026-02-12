@@ -1,6 +1,7 @@
 
 export enum DanceStyle {
   CHA_CHA = 'Cha-Cha-Cha',
+  SAMBA = 'Samba',
   WALTZ = 'Slow Waltz',
   VIENNESE = 'Viennese Waltz',
   TANGO = 'Tango',
@@ -34,8 +35,6 @@ export interface TrainingSettings {
   pauseDuration: number;
   metronomeEnabled: boolean;
   metronomeVolume: number;
-  clapDetectionEnabled: boolean;
-  clapSensitivity: number;
 }
 
 export interface User {

@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "test": "cross-env NODE_ENV=test NODE_OPTIONS=--experimental-vm-modules jest",
-    "migrate": "node-pg-migrate"
+    "migrate": "node-pg-migrate up"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

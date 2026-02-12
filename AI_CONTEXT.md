@@ -91,3 +91,18 @@ When you finish a task, you MUST check this list:
     - **Never bypass the schema.** Direct edits to `App.tsx` styling are discouraged for new features.
 4.  **Audio Warning:** Do NOT change anything in `App.tsx` related to `AudioContext` or `useEffect` hooks without testing on a physical iOS device.
 
+---
+
+## 🔄 UPDATE: Final Versioning & Automated Ops (2026-01-04)
+- **Playlists Restored:** Бэкенд для плейлистов восстановлен в ветке `dev` (было потеряно в предыдущих сессиях). Ветки `main` и `dev` синхронизированы.
+- **Changelog Recovery:** История изменений полностью восстановлена из Git-археологии (ранее была стерта).
+- **Automated Ops:**
+  - Внедрен скрипт `server/scripts/syncChangelog.js`, который автоматически обновляет таблицу `changelogs` в БД при старте сервера, считывая `CHANGELOG.md`.
+  - В CI/CD (`deploy.yml`) добавлена блокирующая проверка `scripts/check-version.js`: деплой невозможен, если версия в `constants.tsx` и `CHANGELOG.md` не совпадает.
+- **Version Bump:** Проект обновлен до версии **`1.0.36`**.
+- **UI Clean:** Демонстрационный баннер Safe Island удален из основного интерфейса `App.tsx` (архитектура осталась и готова к использованию).
+
+### ⚠️ ИНСТРУКЦИЯ ДЛЯ СЛЕДУЮЩЕГО АГЕНТА:
+1. **SHARED DATABASE:** Prod и Test используют **одну базу данных** на сервере `82.202.141.81`. Любое удаление треков/пользователей на тесте затронет прод!
+2. **Mandatory Changelog:** Перед любым коммитом в `main` или `dev` ОБЯЗАТЕЛЬНО добавь описание изменений в `CHANGELOG.md` и обнови версию в `constants.tsx`, иначе CI/CD упадет.
+3. **Deployment:** При ручном деплое используй `docker compose up -d --build`, так как `CHANGELOG.md` и `constants.tsx` теперь копируются внутрь образа для работы авто-синхронизации.

@@ -17,6 +17,8 @@ RUN cd server && npm install --omit=dev
 # Copy server code and build
 COPY server/ ./server/
 COPY --from=builder /app/dist ./dist
+COPY CHANGELOG.md ./CHANGELOG.md
+COPY constants.tsx ./constants.tsx
 
 # Create uploads and set permissions
 RUN mkdir -p /app/server/uploads && \

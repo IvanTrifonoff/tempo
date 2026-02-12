@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Track, DanceStyle, User } from '../types';
 import { useTranslation } from 'react-i18next';
+import { TrashIcon } from './Icons';
 
 interface EditTrackModalProps {
   track: Track;
   user: User | null;
   onClose: () => void;
   onSave: (id: string, data: Partial<Track>) => Promise<void>;
+  onDelete?: () => void;
 }
 
-const EditTrackModal: React.FC<EditTrackModalProps> = ({ track, user, onClose, onSave }) => {
+const EditTrackModal: React.FC<EditTrackModalProps> = ({ track, user, onClose, onSave, onDelete }) => {
   const { t } = useTranslation();
   const [formData, setFormData] = useState({
     title: track.title,
@@ -54,7 +56,19 @@ const EditTrackModal: React.FC<EditTrackModalProps> = ({ track, user, onClose, o
         className="bg-[#1a1a1a] border border-white/10 p-6 rounded-[2.5rem] w-[90%] max-w-sm shadow-2xl animate-in zoom-in-95 duration-200 relative"
         onClick={e => e.stopPropagation()}
       >
-        <h2 className="text-2xl font-serif text-white font-bold mb-6 text-center">{t('edit.title')}</h2>
+        <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-serif text-white font-bold text-center flex-1 ml-8">{t('edit.title')}</h2>
+            {onDelete && (
+                <button 
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); onDelete(); }}
+                    className="p-2 text-gray-600 hover:text-red-500 transition-colors bg-white/5 hover:bg-red-500/10 rounded-xl"
+                    title={t('confirm.deleteTrack')}
+                >
+                    <TrashIcon />
+                </button>
+            )}
+        </div>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

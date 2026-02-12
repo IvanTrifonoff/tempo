@@ -12,7 +12,6 @@ import AdminPanel from './components/AdminPanel';
 import AuthModal from './components/AuthModal';
 import AddToPlaylistModal from './components/AddToPlaylistModal';
 import UserManagementModal from './components/UserManagementModal';
-import ClapDetector from './components/ClapDetector';
 import ReloadPrompt from './components/ReloadPrompt';
 import EditTrackModal from './components/EditTrackModal';
 import { SafeIsland } from './components/safe-island/SafeIsland';
@@ -85,13 +84,7 @@ const App: React.FC = () => {
 
   const [isPlayerVisible, setIsPlayerVisible] = useState(true);
   const [playlistModalTrackId, setPlaylistModalTrackId] = useState<string | null>(null);
-  const [micLevel, setMicLevel] = useState(0);
-  const [showFlash, setShowFlash] = useState(false);
   
-  const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([]);
-  const [audioOutputs, setAudioOutputs] = useState<MediaDeviceInfo[]>([]);
-  const [selectedInputId, setSelectedInputId] = useState<string>('');
-  const [selectedOutputId, setSelectedOutputId] = useState<string>('');
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(
     'Notification' in window ? Notification.permission : 'default'
   );
@@ -101,9 +94,7 @@ const App: React.FC = () => {
     trackDurationLimit: 90,
     pauseDuration: 15,
     metronomeEnabled: false,
-    metronomeVolume: 0.9,
-    clapDetectionEnabled: false,
-    clapSensitivity: 60
+    metronomeVolume: 0.9
   });
 
   // --- Notification Permission ---
@@ -153,8 +144,6 @@ const App: React.FC = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const metronomeIntervalRef = useRef<number | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
-  const musicSourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const micStreamRef = useRef<MediaStream | null>(null);
   const [isMetronomeVisualActive, setIsMetronomeVisualActive] = useState(false);
 
   // --- Check Auth on Load ---
@@ -227,66 +216,15 @@ const App: React.FC = () => {
 
   // --- Audio Context ---
   const initAudioCtx = useCallback(async () => {
-    if (!audioCtxRef.current) {
-      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
-        sampleRate: 44100,
-        latencyHint: 'playback'
-      });
+    if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
+      const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext);
+      audioCtxRef.current = new AudioContextClass({ sampleRate: 44100 });
     }
-    
     if (audioCtxRef.current.state === 'suspended') {
       await audioCtxRef.current.resume();
     }
-
-    if (audioRef.current && !musicSourceNodeRef.current && audioCtxRef.current) {
-        try {
-            const source = audioCtxRef.current.createMediaElementSource(audioRef.current);
-            source.connect(audioCtxRef.current.destination);
-            musicSourceNodeRef.current = source;
-            console.log("Music routed through unified AudioContext");
-        } catch (e) {
-            console.warn("Music routing issue:", e);
-        }
-    }
-    
     return audioCtxRef.current;
   }, []);
-
-  useEffect(() => {
-    const manageMic = async () => {
-        if (training.clapDetectionEnabled) {
-            if (!micStreamRef.current) {
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ 
-                        audio: { 
-                            echoCancellation: false, 
-                            noiseSuppression: false, 
-                            autoGainControl: false,
-                            sampleRate: 44100,
-                            deviceId: selectedInputId ? { exact: selectedInputId } : undefined
-                        } 
-                    });
-                    micStreamRef.current = stream;
-                    setMicLevel(0.00001);
-                    // Ensure audio context is ready when enabling clap detection
-                    await initAudioCtx();
-                } catch (err) {
-                    setTraining(t => ({ ...t, clapDetectionEnabled: false }));
-                }
-            }
-        } else {
-            if (micStreamRef.current) {
-                micStreamRef.current.getTracks().forEach(track => {
-                    track.stop();
-                    track.enabled = false;
-                });
-                micStreamRef.current = null;
-                setMicLevel(0);
-            }
-        }
-    };
-    manageMic();
-  }, [training.clapDetectionEnabled, selectedInputId, initAudioCtx]);
 
   const filteredTracks = useMemo(() => {
     if (activeStyle === 'All') return tracks;
@@ -343,14 +281,14 @@ const App: React.FC = () => {
   }, [training.metronomeEnabled, player.isPlaying, player.currentTrack, player.playbackRate, playMetronomeTick]);
 
   const togglePlay = useCallback(async () => {
-    if (training.metronomeEnabled || training.clapDetectionEnabled) {
+    if (training.metronomeEnabled) {
         await initAudioCtx();
     }
     setPlayer(p => ({ ...p, isPlaying: !p.isPlaying, isPauseCountdown: false }));
-  }, [initAudioCtx, training.metronomeEnabled, training.clapDetectionEnabled]);
+  }, [initAudioCtx, training.metronomeEnabled]);
 
   const selectTrack = useCallback(async (track: Track) => {
-    if (training.metronomeEnabled || training.clapDetectionEnabled) {
+    if (training.metronomeEnabled) {
         await initAudioCtx();
     }
     setPlayer(prev => ({ 
@@ -412,11 +350,12 @@ const App: React.FC = () => {
   }, [player.currentTrack, togglePlay, skip, t, initAudioCtx]);
 
   // --- Data Loading ---
-  useEffect(() => {
+  const fetchTracks = useCallback(() => {
     const headers: any = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    fetch('/api/tracks', { headers })
+    // Добавляем timestamp для обхода кэша
+    fetch(`/api/tracks?t=${Date.now()}`, { headers })
       .then(res => res.json())
       .then(data => {
           if (Array.isArray(data)) setTracks(data);
@@ -424,6 +363,13 @@ const App: React.FC = () => {
       })
       .catch(console.error);
   }, [token]);
+
+  useEffect(() => {
+    fetchTracks();
+    // Авто-обновление каждые 30 секунд
+    const interval = setInterval(fetchTracks, 30000);
+    return () => clearInterval(interval);
+  }, [fetchTracks]);
 
   useEffect(() => {
     if (!audioRef.current || !player.currentTrack) return;
@@ -561,44 +507,11 @@ const App: React.FC = () => {
     i18n.changeLanguage(lng);
   };
 
-  const loadDevices = useCallback(async () => {
-    try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        setAudioInputs(devices.filter(d => d.kind === 'audioinput'));
-        setAudioOutputs(devices.filter(d => d.kind === 'audiooutput'));
-    } catch (e) { console.error(e); }
-  }, []);
+    return (
 
-  useEffect(() => {
-    if (showTrainingPanel) {
-      loadDevices();
-    }
-    navigator.mediaDevices.addEventListener('devicechange', loadDevices);
-    return () => navigator.mediaDevices.removeEventListener('devicechange', loadDevices);
-  }, [loadDevices, showTrainingPanel]);
+      <div className="min-h-screen bg-[#0a0a0a] pb-40">
 
-  useEffect(() => {
-      if (training.clapDetectionEnabled) {
-          // Wait for permission grant in ClapDetector
-          const timer = setTimeout(loadDevices, 2000);
-          return () => clearTimeout(timer);
-      }
-  }, [training.clapDetectionEnabled, loadDevices]);
-
-  useEffect(() => {
-    if (audioRef.current && selectedOutputId && (audioRef.current as any).setSinkId) {
-        (audioRef.current as any).setSinkId(selectedOutputId).catch(console.error);
-    }
-  }, [selectedOutputId]);
-
-  const handleClapAction = useCallback(() => {
-      togglePlay();
-      setShowFlash(true);
-      setTimeout(() => setShowFlash(false), 200);
-  }, [togglePlay]);
-
-  return (
-    <div className="min-h-screen bg-[#0a0a0a] pb-40">
+  
       <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/10 px-4 py-2 flex justify-between items-center">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-serif font-bold tracking-tight text-white hidden sm:block">{t('app.title')}</h1>
@@ -699,14 +612,6 @@ const App: React.FC = () => {
                 <div className="flex justify-between items-start mb-2">
                   <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded shadow-sm ${STYLE_COLORS[track.style]}`}>{t(`styles.${track.style}`)}</span>
                   <div className="flex items-center gap-2">
-                     {user?.isAdmin && (
-                       <button 
-                        onClick={(e) => { e.stopPropagation(); deleteTrack(track.id); }} 
-                        className="text-gray-400 hover:text-red-500 transition-all p-1"
-                       >
-                         <TrashIcon />
-                       </button>
-                     )}
                      <button onClick={(e) => { e.stopPropagation(); if(user) setPlaylistModalTrackId(track.id); else setShowAuth(true); }} className="text-gray-600 hover:text-indigo-400 transition-transform hover:scale-110 p-1"><PlusIcon /></button>
                      <button onClick={(e) => { e.stopPropagation(); toggleFavorite(track.id); }} className={`transition-transform hover:scale-110 p-1 ${user?.favorites.includes(track.id) ? 'text-rose-500' : 'text-gray-600 hover:text-rose-400'}`}><HeartIcon filled={user?.favorites.includes(track.id)} /></button>
                     <div className="flex items-center gap-1 bg-black/30 px-2 py-0.5 rounded-md" onClick={e => e.stopPropagation()}>
@@ -747,13 +652,6 @@ const App: React.FC = () => {
               </div>
             );
           })}
-        </div>
-
-        <div className="mt-8">
-            <SafeIsland 
-                data={DEMO_SAFE_JSON} 
-                onAction={(id) => alert(`Safe Action Triggered: ${id}`)} 
-            />
         </div>
       </main>
 
@@ -913,62 +811,6 @@ const App: React.FC = () => {
                 )}
               </div>
 
-              {/* Clap Detection Card */}
-              <div className="p-6 bg-white/5 rounded-3xl border border-white/10 space-y-6">
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <h4 className="text-white font-bold text-lg">{t('coach.clapDetection')}</h4>
-                    <p className="text-xs text-gray-500">{t('coach.clapDesc')}</p>
-                  </div>
-                  <button onClick={() => setTraining(t => ({ ...t, clapDetectionEnabled: !t.clapDetectionEnabled }))} className={`w-16 h-9 rounded-full transition-all p-1 flex items-center flex-shrink-0 ${training.clapDetectionEnabled ? 'bg-yellow-500' : 'bg-white/10'}`}>
-                    <div className={`w-7 h-7 rounded-full bg-black transition-all transform ${training.clapDetectionEnabled ? 'translate-x-7' : 'translate-x-0'}`} />
-                  </button>
-                </div>
-                {training.clapDetectionEnabled && (
-                  <div className="pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                      <div className="flex justify-between text-sm text-gray-300 mb-2"><span>{t('coach.sensitivity')}</span><span className="text-yellow-500">{training.clapSensitivity}%</span></div>
-                      <input type="range" min="10" max="100" step="5" value={training.clapSensitivity} onChange={e => setTraining(t => ({ ...t, clapSensitivity: Number(e.target.value) }))} className="w-full accent-yellow-500" />
-                      <div className="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden mt-3">
-                        <div className="h-full bg-green-500 transition-all duration-75" style={{ width: `${Math.min(100, micLevel * 100)}%` }} />
-                      </div>
-                      
-                      <div className="pt-4 space-y-4 border-t border-white/10 mt-4">
-                          <div className="relative">
-                              <label className="block text-[10px] uppercase font-bold text-gray-500 mb-1.5 ml-1">Microphone (Input)</label>
-                              <select 
-                                  value={selectedInputId} 
-                                  onChange={e => setSelectedInputId(e.target.value)}
-                                  className="w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-yellow-500 transition appearance-none"
-                              >
-                                  <option value="" className="bg-[#1a1a1a]">Auto / Default</option>
-                                  {audioInputs.map(d => <option key={d.deviceId} value={d.deviceId} className="bg-[#1a1a1a]">{d.label || `Device ${d.deviceId.slice(0,5)}...`}</option>)}
-                              </select>
-                              <div className="absolute right-4 bottom-3.5 pointer-events-none text-gray-500 text-[10px]">▼</div>
-                          </div>
-                          
-                          <div className="relative">
-                              <label className="block text-[10px] uppercase font-bold text-gray-500 mb-1.5 ml-1">Speakers (Output)</label>
-                              <select 
-                                  value={selectedOutputId} 
-                                  onChange={e => setSelectedOutputId(e.target.value)}
-                                  className={`w-full bg-[#1a1a1a] border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-yellow-500 transition appearance-none ${audioOutputs.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                  disabled={audioOutputs.length === 0}
-                              >
-                                  {audioOutputs.length === 0 ? (
-                                      <option>System Default (Not supported)</option>
-                                  ) : (
-                                      <>
-                                        <option value="" className="bg-[#1a1a1a]">Default</option>
-                                        {audioOutputs.map(d => <option key={d.deviceId} value={d.deviceId} className="bg-[#1a1a1a]">{d.label || `Device ${d.deviceId.slice(0,5)}...`}</option>)}
-                                      </>
-                                  )}
-                              </select>
-                              <div className="absolute right-4 bottom-3.5 pointer-events-none text-gray-500 text-[10px]">▼</div>
-                          </div>
-                      </div>
-                  </div>
-                )}
-              </div>
             </div>
             <button onClick={() => setShowTrainingPanel(false)} className="w-full mt-12 py-5 bg-yellow-500 text-black font-black uppercase rounded-[1.5rem] hover:bg-yellow-400 transition-all">
               {t('coach.close')}
@@ -1132,22 +974,19 @@ const App: React.FC = () => {
       {trackToEdit && (
         <EditTrackModal
           track={trackToEdit}
+          user={user}
           onClose={() => setTrackToEdit(null)}
           onSave={handleSaveTrack}
+          onDelete={
+            (user?.role === 'admin' || user?.id === trackToEdit.ownerId) 
+              ? () => { deleteTrack(trackToEdit.id); setTrackToEdit(null); } 
+              : undefined
+          }
         />
       )}
       
       <UpdateNotification />
       <ReloadPrompt />
-
-      <ClapDetector 
-        isEnabled={training.clapDetectionEnabled} 
-        sensitivity={training.clapSensitivity} 
-        onClap={handleClapAction} 
-        onLevelChange={setMicLevel}
-        audioContext={audioCtxRef.current}
-        stream={micStreamRef.current}
-      />
     </div>
   );
 };
