@@ -26,9 +26,18 @@ describe('Tempo Extended API', () => {
     const studentLogin = await request(app).post('/api/auth/login').send(studentUser);
     studentToken = studentLogin.body.token;
 
-    // Get a track for testing (preloaded ones)
-    const tracksRes = await request(app).get('/api/tracks').set('Authorization', `Bearer ${coachToken}`);
-    testTrackId = tracksRes.body[0].id;
+    // Create a track for testing
+    const trackRes = await request(app)
+      .post('/api/tracks')
+      .set('Authorization', `Bearer ${coachToken}`)
+      .send({
+        title: 'Test Track',
+        artist: 'Test Artist',
+        style: 'Cha Cha',
+        bpm: 120,
+        url: 'https://example.com/test.mp3'
+      });
+    testTrackId = trackRes.body.id;
   });
 
   afterAll(async () => {

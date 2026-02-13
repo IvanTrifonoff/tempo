@@ -57,12 +57,15 @@ jobs:
           # Применяем схему БД для тестов
           PGPASSWORD=tempo_password psql -h localhost -U tempo -d tempo_test -f server/schema.sql
 
-      - name: Run Tests
+      - name: Run Backend Tests
         env:
           DATABASE_URL: postgres://tempo:tempo_password@localhost:5432/tempo_test
           JWT_SECRET: test-secret
         run: |
           cd server && npm test
+
+      - name: Run Frontend Tests (Vitest)
+        run: npx vitest run
 
       - name: Build Frontend
         run: |
