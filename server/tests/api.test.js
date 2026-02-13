@@ -9,12 +9,9 @@ describe('Tempo API', () => {
     password: 'password123'
   };
 
-  // Increase timeout for DB operations
-  jest.setTimeout(10000);
-
   beforeAll(async () => {
       await db.query("INSERT INTO changelogs (version, description_ru, description_en) VALUES ('0.0.0-test', 'Test', 'Test') ON CONFLICT DO NOTHING");
-  });
+  }, 10000);
 
   afterAll(async () => {
     // Cleanup

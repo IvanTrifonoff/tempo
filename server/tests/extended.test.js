@@ -10,9 +10,10 @@ describe('Tempo Extended API', () => {
   const coachUser = { email: `coach_${Date.now()}@example.com`, password: 'password123' };
   const studentUser = { email: `student_${Date.now()}@example.com`, password: 'password123' };
 
-  jest.setTimeout(15000);
-
   beforeAll(async () => {
+    // ...
+  }, 15000);
+}, 20000);
     // Register and verify coach
     await request(app).post('/api/auth/register').send(coachUser);
     await db.query("UPDATE users SET is_verified = true WHERE email = $1", [coachUser.email]);
