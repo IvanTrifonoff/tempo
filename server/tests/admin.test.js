@@ -63,4 +63,36 @@ describe('Admin API', () => {
             expect(updateRes.body.subscription_tier).toBe('pro');
         });
     });
+
+    describe('Monetization & Limits', () => {
+        test('Should enforce track limits for normal users', async () => {
+            // 1. Set limit to 1 for our normal user
+            const usersRes = await request(app)
+                .get('/api/admin/users')
+                .query({ search: normalUser.email })
+                .set('Authorization', `Bearer ${adminToken}`);
+            const userId = usersRes.body[0].id;
+
+            await request(app)
+                .patch(`/api/admin/users/${userId}`)
+                .set('Authorization', `Bearer ${adminToken}`)
+                .send({ trackLimit: 1 });
+
+            // 2. Upload first track (should succeed)
+            const res1 = await request(app)
+                .post('/api/tracks')
+                .set('Authorization', `Bearer ${userToken}`)
+                .send({ title: 'Track 1', style: 'Cha Cha', bpm: 120, url: 'http://test.com/1.mp3' });
+            expect(res1.statusCode).toBe(200);
+
+            // 3. Upload second track (should fail with 402)
+            const res2 = await request(app)
+                .post('/api/tracks')
+                .set('Authorization', `Bearer ${userToken}`)
+                .send({ title: 'Track 2', style: 'Samba', bpm: 100, url: 'http://test.com/2.mp3' });
+            
+            expect(res2.statusCode).toBe(402);
+            expect(res2.body.error).toBe('Track limit reached');
+        });
+    });
 }, 30000);

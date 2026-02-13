@@ -59,6 +59,24 @@ export const createTrack = asyncHandler(async (req, res) => {
     
     const { title, artist, style, bpm } = req.body;
     
+    // 1. Проверка лимитов (для всех кроме админов)
+    if (req.user.role !== 'admin') {
+        const userRes = await db.query('SELECT track_limit FROM users WHERE id = $1', [req.user.id]);
+        const trackLimit = userRes.rows[0]?.track_limit || 10;
+
+        const countRes = await db.query('SELECT count(*) FROM tracks WHERE owner_id = $1', [req.user.id]);
+        const currentTracks = parseInt(countRes.rows[0].count);
+
+        if (currentTracks >= trackLimit) {
+            return res.status(402).json({ 
+                error: 'Track limit reached', 
+                limit: trackLimit,
+                current: currentTracks,
+                message: 'Please upgrade your plan to upload more tracks.' 
+            });
+        }
+    }
+
     // Basic validation
     if (!title || !style || !bpm) {
       return res.status(400).json({ error: 'Missing required fields (title, style, bpm)' });
