@@ -3,7 +3,7 @@ import { app } from '../server.js';
 import db from '../db/index.js';
 
 describe('Tempo Extended API', () => {
-  let coachToken, studentToken, adminToken;
+  let coachToken, studentToken;
   let testTrackId;
   let testPlaylistId;
 
@@ -11,9 +11,6 @@ describe('Tempo Extended API', () => {
   const studentUser = { email: `student_${Date.now()}@example.com`, password: 'password123' };
 
   beforeAll(async () => {
-    // ...
-  }, 15000);
-}, 20000);
     // Register and verify coach
     await request(app).post('/api/auth/register').send(coachUser);
     await db.query("UPDATE users SET is_verified = true WHERE email = $1", [coachUser.email]);
@@ -38,7 +35,7 @@ describe('Tempo Extended API', () => {
         url: 'https://example.com/test.mp3'
       });
     testTrackId = trackRes.body.id;
-  });
+  }, 20000);
 
   afterAll(async () => {
     await db.query("DELETE FROM users WHERE email LIKE 'coach_%@example.com' OR email LIKE 'student_%@example.com'");
@@ -103,4 +100,4 @@ describe('Tempo Extended API', () => {
           expect(res.body).not.toContain(testTrackId);
       });
   });
-});
+}, 30000);
