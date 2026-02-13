@@ -35,7 +35,7 @@ export const AdminProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const [isLoading, setIsLoading] = useState(false);
 
     const getAuthHeader = () => ({
-        'Authorization': `Bearer ${localStorage.getItem('tempo_token')}`,
+        'Authorization': `Bearer ${localStorage.getItem('token')}`,
         'Content-Type': 'application/json'
     });
 
