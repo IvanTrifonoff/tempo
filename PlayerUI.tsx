@@ -512,10 +512,7 @@ const PlayerUI: React.FC = () => {
   };
 
     return (
-
-      <div className="min-h-screen bg-[#0a0a0a] pb-40">
-
-  
+      <>
       <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/10 px-4 py-2 flex justify-between items-center">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-serif font-bold tracking-tight text-white hidden sm:block">{t('app.title')}</h1>
@@ -1007,7 +1004,7 @@ const PlayerUI: React.FC = () => {
       
       <UpdateNotification />
       <ReloadPrompt />
-    </div>
+    </>
   );
 };
 
