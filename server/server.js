@@ -14,6 +14,7 @@ import authRoutes from './routes/auth.js';
 import trackRoutes from './routes/tracks.js';
 import playlistRoutes from './routes/playlists.js';
 import userRoutes from './routes/users.js';
+import adminRoutes from './routes/admin.js';
 import { verifyEmail } from './controllers/authController.js';
 
 dotenv.config();
@@ -44,6 +45,7 @@ app.use(express.static(path.join(__dirname, '../dist'), { maxAge: '1y', etag: fa
 app.use('/api/auth', authRoutes);
 app.use('/api/tracks', trackRoutes);
 app.use('/api/playlists', playlistRoutes);
+app.use('/api/admin', adminRoutes);
 app.use('/api/admin/users', userRoutes);
 app.use('/api/user', userRoutes);
 

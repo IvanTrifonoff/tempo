@@ -1,60 +1,75 @@
 import db from '../db/index.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 
-export const getUsers = asyncHandler(async (req, res) => {
-    console.log(`[DEBUG] getUsers called by user: ${req.user.email}, role: ${req.user.role}`);
-    if (req.user.role !== 'admin') {
-        console.log(`[DEBUG] Access denied for ${req.user.email}`);
-        return res.status(403).json({ error: 'Denied' });
-    }
-    const { rows } = await db.query('SELECT * FROM users ORDER BY created_at DESC');
-    console.log(`[DEBUG] Returning ${rows.length} users`);
-    res.json(rows.map(u => ({
-        id: u.id,
-        email: u.email,
-        role: u.role,
-        coachId: u.coach_id,
-        isVerified: u.is_verified,
-        isAdmin: u.role === 'admin'
-    })));
+export const getStats = asyncHandler(async (req, res) => {
+    const userCount = await db.query('SELECT count(*) FROM users');
+    const trackCount = await db.query('SELECT count(*) FROM tracks');
+    const recentUsers = await db.query('SELECT count(*) FROM users WHERE created_at > NOW() - INTERVAL \'24 hours\'');
+    
+    res.json({
+        totalUsers: parseInt(userCount.rows[0].count),
+        totalTracks: parseInt(trackCount.rows[0].count),
+        newUsers24h: parseInt(recentUsers.rows[0].count)
+    });
 });
 
-export const deleteUser = asyncHandler(async (req, res) => {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Denied' });
-    const { rows } = await db.query('SELECT email FROM users WHERE id = $1', [req.params.id]);
-    if (rows.length === 0) return res.status(404).json({ error: 'Not found' });
-    if (rows[0].email === 'admin@trfnv.ru') return res.status(403).json({ error: 'Cannot delete superadmin' });
+export const getUsers = asyncHandler(async (req, res) => {
+    const { search, role, tier } = req.query;
     
-    await db.query('DELETE FROM users WHERE id = $1', [req.params.id]);
-    res.json({ success: true });
+    let query = `
+        SELECT id, email, role, is_verified as "isVerified", 
+               track_limit as "trackLimit", subscription_tier as "subscriptionTier", 
+               is_banned as "isBanned", created_at as "createdAt", last_login as "lastLogin"
+        FROM users WHERE 1=1
+    `;
+    const params = [];
+    let paramIdx = 1;
+
+    if (search) {
+        query += ` AND email ILIKE $${paramIdx++}`;
+        params.push(`%${search}%`);
+    }
+    if (role) {
+        query += ` AND role = $${paramIdx++}`;
+        params.push(role);
+    }
+    if (tier) {
+        query += ` AND subscription_tier = $${paramIdx++}`;
+        params.push(tier);
+    }
+
+    query += ' ORDER BY created_at DESC';
+
+    const { rows } = await db.query(query, params);
+    res.json(rows);
 });
 
 export const updateUser = asyncHandler(async (req, res) => {
-    if (req.user.role !== 'admin') return res.status(403).json({ error: 'Denied' });
-    const updates = [];
+    const { id } = req.params;
+    const { trackLimit, subscriptionTier, isBanned, role } = req.body;
+
+    const fields = [];
     const values = [];
     let idx = 1;
 
-    if (req.body.role) { updates.push(`role = $${idx++}`); values.push(req.body.role); }
-    if (req.body.isVerified !== undefined) { updates.push(`is_verified = $${idx++}`); values.push(req.body.isVerified); }
+    if (trackLimit !== undefined) { fields.push(`track_limit = $${idx++}`); values.push(trackLimit); }
+    if (subscriptionTier) { fields.push(`subscription_tier = $${idx++}`); values.push(subscriptionTier); }
+    if (isBanned !== undefined) { fields.push(`is_banned = $${idx++}`); values.push(isBanned); }
+    if (role) { fields.push(`role = $${idx++}`); values.push(role); }
 
-    if (updates.length === 0) return res.json({});
+    if (fields.length === 0) return res.status(400).json({ error: 'No fields to update' });
 
-    values.push(req.params.id);
-    const { rows } = await db.query(
-        `UPDATE users SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`,
-        values
+    values.push(id);
+    const updateQuery = `UPDATE users SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`;
+    const { rows } = await db.query(updateQuery, values);
+
+    if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
+
+    // Логируем действие админа
+    await db.query(
+        'INSERT INTO audit_logs (admin_id, action, target_id, details) VALUES ($1, $2, $3, $4)',
+        [req.user.id, 'UPDATE_USER', id, JSON.stringify(req.body)]
     );
-    
-    if (rows.length === 0) return res.status(404).json({ error: 'Not found' });
-    
-    const u = rows[0];
-    res.json({
-        id: u.id,
-        email: u.email,
-        role: u.role,
-        coachId: u.coach_id,
-        isVerified: u.is_verified,
-        isAdmin: u.role === 'admin'
-    });
+
+    res.json(rows[0]);
 });

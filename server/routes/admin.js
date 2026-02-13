@@ -1,11 +1,14 @@
 import express from 'express';
 import * as adminController from '../controllers/adminController.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, isAdmin } from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.get('/users', authenticateToken, adminController.getUsers);
-router.delete('/users/:id', authenticateToken, adminController.deleteUser);
-router.patch('/users/:id', authenticateToken, adminController.updateUser);
+router.use(authenticateToken);
+router.use(isAdmin);
+
+router.get('/stats', adminController.getStats);
+router.get('/users', adminController.getUsers);
+router.patch('/users/:id', adminController.updateUser);
 
 export default router;

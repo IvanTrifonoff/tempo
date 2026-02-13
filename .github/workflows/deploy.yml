@@ -54,8 +54,9 @@ jobs:
 
       - name: Run Schema
         run: |
-          # Применяем схему БД для тестов
+          # Применяем схему БД и миграции для тестов
           PGPASSWORD=tempo_password psql -h localhost -U tempo -d tempo_test -f server/schema.sql
+          cd server && DATABASE_URL=postgres://tempo:tempo_password@localhost:5432/tempo_test npm run migrate
 
       - name: Run Backend Tests
         env:
