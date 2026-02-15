@@ -1006,7 +1006,7 @@ const PlayerUI: React.FC = () => {
       
       <UpdateNotification />
       <ReloadPrompt />
-    </>
+    </div>
   );
 };
 
