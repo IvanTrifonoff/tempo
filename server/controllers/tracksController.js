@@ -5,6 +5,7 @@ import crypto from 'crypto';
 import { UPLOADS_PATH } from '../middleware/upload.js';
 import jwt from 'jsonwebtoken';
 import { asyncHandler } from '../middleware/errorHandler.js';
+import limitService from '../services/limitService.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
@@ -55,30 +56,37 @@ export const getTracks = asyncHandler(async (req, res) => {
 });
 
 export const createTrack = asyncHandler(async (req, res) => {
-  if (req.user.role === 'student') return res.status(403).json({ error: 'Students cannot upload' });
+    console.log(`[${new Date().toISOString()}] DEBUG: Track upload request from user ${req.user.id}`);
+    
+    if (req.user.role === 'student') {
+        console.warn(`[${new Date().toISOString()}] DEBUG: Student ${req.user.id} tried to upload`);
+        return res.status(403).json({ error: 'Students cannot upload' });
+    }
     
     const { title, artist, style, bpm } = req.body;
-    
-    // 1. Проверка лимитов (для всех кроме админов)
-    if (req.user.role !== 'admin') {
-        const userRes = await db.query('SELECT track_limit FROM users WHERE id = $1', [req.user.id]);
-        const trackLimit = userRes.rows[0]?.track_limit || 10;
+    console.log(`[${new Date().toISOString()}] DEBUG: Request body:`, req.body);
+    console.log(`[${new Date().toISOString()}] DEBUG: Request file:`, req.file ? req.file.filename : 'none');
 
-        const countRes = await db.query('SELECT count(*) FROM tracks WHERE owner_id = $1', [req.user.id]);
-        const currentTracks = parseInt(countRes.rows[0].count);
-
-        if (currentTracks >= trackLimit) {
+    // 1. Проверка лимитов через сервис
+    try {
+        const { canUpload, current, limit } = await limitService.checkUploadLimit(req.user.id);
+        if (!canUpload) {
+            console.warn(`[${new Date().toISOString()}] DEBUG: Limit reached: ${current}/${limit}`);
             return res.status(402).json({ 
                 error: 'Track limit reached', 
-                limit: trackLimit,
-                current: currentTracks,
+                limit,
+                current,
                 message: 'Please upgrade your plan to upload more tracks.' 
             });
         }
+    } catch (limitErr) {
+        console.error(`[${new Date().toISOString()}] DEBUG: Limit service error:`, limitErr.message);
+        return res.status(500).json({ error: 'Internal limit check error' });
     }
 
     // Basic validation
     if (!title || !style || !bpm) {
+      console.warn(`[${new Date().toISOString()}] DEBUG: Validation failed: title=${title}, style=${style}, bpm=${bpm}`);
       return res.status(400).json({ error: 'Missing required fields (title, style, bpm)' });
     }
 
@@ -90,6 +98,7 @@ export const createTrack = asyncHandler(async (req, res) => {
     }
 
     if (!url) {
+      console.warn(`[${new Date().toISOString()}] DEBUG: No audio file or URL`);
       return res.status(400).json({ error: 'Audio file or URL is required' });
     }
 
@@ -97,16 +106,22 @@ export const createTrack = asyncHandler(async (req, res) => {
     const ownerId = req.user.id;
     const isPublic = req.user.role === 'admin';
 
-    await db.query(
-        `INSERT INTO tracks (id, title, artist, style, bpm, url, owner_id, is_public)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-        [newTrackId, title, artist || 'Unknown Artist', style, Number(bpm), url, ownerId, isPublic]
-    );
+    try {
+        await db.query(
+            `INSERT INTO tracks (id, title, artist, style, bpm, url, owner_id, is_public)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+            [newTrackId, title, artist || 'Unknown Artist', style, Number(bpm), url, ownerId, isPublic]
+        );
+        console.log(`[${new Date().toISOString()}] DEBUG: Successfully saved track ${newTrackId} to DB`);
+    } catch (dbErr) {
+        console.error(`[${new Date().toISOString()}] DEBUG: Database error:`, dbErr.message);
+        return res.status(500).json({ error: 'Failed to save track to database' });
+    }
 
     res.json({
         id: newTrackId,
         title,
-        artist,
+        artist: artist || 'Unknown Artist',
         style,
         bpm: Number(bpm),
         url,
@@ -200,4 +215,3 @@ export const toggleFavorite = asyncHandler(async (req, res) => {
     const favsRes = await db.query('SELECT track_id FROM user_favorites WHERE user_id = $1', [userId]);
     res.json(favsRes.rows.map(r => r.track_id));
 });
-

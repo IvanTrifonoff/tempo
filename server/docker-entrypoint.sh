@@ -2,7 +2,7 @@
 set -e
 
 echo "Running database migrations..."
-# npm run migrate
+npm run migrate
 
 echo "Syncing changelog..."
 node scripts/syncChangelog.js
