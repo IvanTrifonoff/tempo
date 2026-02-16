@@ -11,7 +11,6 @@ import {
 import { STYLE_COLORS, APP_VERSION } from './constants';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import UploadTrackModal from './components/UploadTrackModal';
-// ...
 import AdminPage from './components/admin/AdminPage';
 import AuthModal from './components/AuthModal';
 import AddToPlaylistModal from './components/AddToPlaylistModal';
@@ -19,53 +18,7 @@ import UserManagementModal from './components/UserManagementModal';
 import ReloadPrompt from './components/ReloadPrompt';
 import EditTrackModal from './components/EditTrackModal';
 import { SafeIsland } from './components/safe-island/SafeIsland';
-
 import UpdateNotification from './components/UpdateNotification';
-
-const DEMO_SAFE_JSON = {
-  featureId: "demo-banner",
-  version: "1.0",
-  root: {
-    id: "root-container",
-    type: "container",
-    style: { background: "bg-indigo-900", padding: "medium", shadow: true },
-    props: { layout: "row", align: "center", justify: "between", gap: "medium" },
-    children: [
-      {
-        id: "icon-wrap",
-        type: "container",
-        props: { layout: "col", align: "center" },
-        children: [
-           { id: "icn", type: "icon", props: { name: "ShieldCheckIcon", color: "white" } }
-        ]
-      },
-      {
-        id: "text-block",
-        type: "container",
-        style: { width: "full" },
-        props: {},
-        children: [
-          {
-            id: "title",
-            type: "text",
-            props: { content: "Safe Protocol Active", variant: "h3" }
-          },
-          {
-             id: "subtitle",
-             type: "text",
-             props: { content: "This UI is rendered entirely from validated JSON (SDUI).", variant: "caption" }
-          }
-        ]
-      },
-      {
-        id: "btn",
-        type: "button",
-        props: { label: "Test Action", variant: "secondary" },
-        actionId: "test_safe_click"
-      }
-    ]
-  }
-};
 
 const PlayerUI: React.FC = () => {
   const { t, i18n } = useTranslation();
@@ -85,7 +38,6 @@ const PlayerUI: React.FC = () => {
   const [showTrainingPanel, setShowTrainingPanel] = useState(false);
   
   const [trackToEdit, setTrackToEdit] = useState<Track | null>(null);
-
   const [isPlayerVisible, setIsPlayerVisible] = useState(true);
   const [playlistModalTrackId, setPlaylistModalTrackId] = useState<string | null>(null);
   
@@ -187,25 +139,6 @@ const PlayerUI: React.FC = () => {
     alert(t('app.inviteCopied') || 'Invite link copied to clipboard!');
   };
 
-  // --- Data Loading ---
-  useEffect(() => {
-    fetch('/api/tracks')
-      .then(res => res.json())
-      .then(data => setTracks(data))
-      .catch(console.error);
-  }, []);
-
-  useEffect(() => {
-    if (token) {
-      fetch('/api/playlists', { headers: { 'Authorization': `Bearer ${token}` } })
-        .then(res => res.json())
-        .then(data => Array.isArray(data) ? setPlaylists(data) : setPlaylists([]))
-        .catch(console.error);
-    } else {
-      setPlaylists([]);
-    }
-  }, [token]);
-
   const handleAddTrack = async (formData: FormData) => {
     if (!token) return;
     const res = await fetch('/api/tracks', {
@@ -218,7 +151,6 @@ const PlayerUI: React.FC = () => {
     setTracks(prev => [newTrack, ...prev]);
   };
 
-  // --- Audio Context ---
   const initAudioCtx = useCallback(async () => {
     if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
       const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext);
@@ -238,7 +170,6 @@ const PlayerUI: React.FC = () => {
     return tracks.filter(t => t.style === activeStyle);
   }, [activeStyle, tracks, user?.favorites, playlists]);
 
-  // --- Metronome ---
   const playMetronomeTick = useCallback(async () => {
     const ctx = await initAudioCtx();
     if (!ctx || ctx.state !== 'running') return;
@@ -248,23 +179,18 @@ const PlayerUI: React.FC = () => {
     
     osc.connect(gain);
     gain.connect(ctx.destination);
-    
     const now = ctx.currentTime;
     
-    // Woodblock-like sound
     osc.type = 'sine';
-    // Start slightly high and drop pitch quickly for percussive effect
     osc.frequency.setValueAtTime(800, now);
     osc.frequency.exponentialRampToValueAtTime(400, now + 0.02);
     
-    // Short, sharp envelope
     gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(training.metronomeVolume, now + 0.002); // Fast attack
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05); // Fast decay
+    gain.gain.linearRampToValueAtTime(training.metronomeVolume, now + 0.002);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
     
     osc.start(now);
     osc.stop(now + 0.06);
-    
     setIsMetronomeVisualActive(true);
     setTimeout(() => setIsMetronomeVisualActive(false), 50);
   }, [initAudioCtx, training.metronomeVolume]);
@@ -324,7 +250,6 @@ const PlayerUI: React.FC = () => {
     selectTrack(filteredTracks[nextIndex]);
   }, [player.currentTrack, filteredTracks, selectTrack, player.isShuffle]);
 
-  // --- Media Session API (Background Play) ---
   useEffect(() => {
     if ('mediaSession' in navigator && player.currentTrack) {
       try {
@@ -353,12 +278,9 @@ const PlayerUI: React.FC = () => {
     }
   }, [player.currentTrack, togglePlay, skip, t, initAudioCtx]);
 
-  // --- Data Loading ---
   const fetchTracks = useCallback(() => {
     const headers: any = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
-
-    // Добавляем timestamp для обхода кэша
     fetch(`/api/tracks?t=${Date.now()}`, { headers })
       .then(res => res.json())
       .then(data => {
@@ -370,10 +292,20 @@ const PlayerUI: React.FC = () => {
 
   useEffect(() => {
     fetchTracks();
-    // Авто-обновление каждые 30 секунд
     const interval = setInterval(fetchTracks, 30000);
     return () => clearInterval(interval);
   }, [fetchTracks]);
+
+  useEffect(() => {
+    if (token) {
+      fetch('/api/playlists', { headers: { 'Authorization': `Bearer ${token}` } })
+        .then(res => res.json())
+        .then(data => Array.isArray(data) ? setPlaylists(data) : setPlaylists([]))
+        .catch(console.error);
+    } else {
+      setPlaylists([]);
+    }
+  }, [token]);
 
   useEffect(() => {
     if (!audioRef.current || !player.currentTrack) return;
@@ -402,12 +334,7 @@ const PlayerUI: React.FC = () => {
       }, 1000);
     } else if (player.isPauseCountdown && player.countdownValue === 0) {
       if (player.isRepeat) {
-        setPlayer(p => ({ 
-            ...p, 
-            isPlaying: true, 
-            isPauseCountdown: false,
-            currentTime: 0 
-        }));
+        setPlayer(p => ({ ...p, isPlaying: true, isPauseCountdown: false, currentTime: 0 }));
         if (audioRef.current) {
             audioRef.current.currentTime = 0;
             audioRef.current.play().catch(console.error);
@@ -421,36 +348,19 @@ const PlayerUI: React.FC = () => {
 
   const toggleTrackInPlaylist = async (playlistId: string, isAdding: boolean) => {
     if (!token || !playlistModalTrackId) return;
-    
     setPlaylists(prev => prev.map(p => {
         if (p.id !== playlistId) return p;
         return {
             ...p,
-            trackIds: isAdding 
-                ? [...p.trackIds, playlistModalTrackId] 
-                : p.trackIds.filter(id => id !== playlistModalTrackId)
+            trackIds: isAdding ? [...p.trackIds, playlistModalTrackId] : p.trackIds.filter(id => id !== playlistModalTrackId)
         };
     }));
-
     try {
         const method = isAdding ? 'POST' : 'DELETE';
-        const url = isAdding 
-            ? `/api/playlists/${playlistId}/tracks`
-            : `/api/playlists/${playlistId}/tracks/${playlistModalTrackId}`;
-            
+        const url = isAdding ? `/api/playlists/${playlistId}/tracks` : `/api/playlists/${playlistId}/tracks/${playlistModalTrackId}`;
         const body = isAdding ? JSON.stringify({ trackId: playlistModalTrackId }) : undefined;
-
-        await fetch(url, {
-            method,
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` 
-            },
-            body
-        });
-    } catch (e) {
-        console.error(e);
-    }
+        await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body });
+    } catch (e) { console.error(e); }
   };
 
   const toggleFavorite = async (trackId: string) => {
@@ -468,16 +378,9 @@ const PlayerUI: React.FC = () => {
 
   const handleSaveTrack = async (trackId: string, data: Partial<Track>) => {
       if (!token) return;
-      
-      // Optimistic update
       setTracks(prev => prev.map(t => t.id === trackId ? { ...t, ...data } : t));
-
       try {
-          await fetch(`/api/tracks/${trackId}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-              body: JSON.stringify(data)
-          });
+          await fetch(`/api/tracks/${trackId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(data) });
       } catch (e) { console.error(e); }
   };
 
@@ -485,13 +388,8 @@ const PlayerUI: React.FC = () => {
     if (!token) return;
     if (confirm(t('confirm.deleteTrack'))) {
       setTracks(prev => prev.filter(t => t.id !== trackId));
-      if (player.currentTrack?.id === trackId) {
-        setPlayer(p => ({ ...p, currentTrack: null, isPlaying: false }));
-      }
-      fetch(`/api/tracks/${trackId}`, { 
-          method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
-      }).catch(console.error);
+      if (player.currentTrack?.id === trackId) setPlayer(p => ({ ...p, currentTrack: null, isPlaying: false }));
+      fetch(`/api/tracks/${trackId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } }).catch(console.error);
     }
   };
 
@@ -507,65 +405,40 @@ const PlayerUI: React.FC = () => {
     setPlayer(p => ({ ...p, playbackRate: Math.max(0.5, Math.min(1.5, newRate)) }));
   };
 
-  const changeLanguage = (lng: string) => {
-    i18n.changeLanguage(lng);
-  };
-
-    return (
-      <div className="bg-black">
-        <header className="sticky top-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/10 px-4 py-2 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <h1 className="text-xl font-serif font-bold tracking-tight text-white hidden sm:block">{t('app.title')}</h1>
-          </div>
-
-          <div className="flex items-center gap-2 md:gap-4">
-            <button 
-              onClick={() => setTraining(t => ({...t, metronomeEnabled: !t.metronomeEnabled}))}
-              className={`p-1.5 md:px-3 md:py-1.5 rounded-full border transition-all duration-300 flex items-center gap-2 ${training.metronomeEnabled ? 'bg-yellow-500 text-black border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.4)]' : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'}`}
-            >
-              <MetronomeIcon />
-              <span className="hidden md:inline font-bold text-sm">{t('app.metronome')}</span>
+  return (
+    <div className="flex-1 flex flex-col min-h-0 bg-[#0a0a0a]">
+      <header className="flex-shrink-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/10 px-4 py-2 flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-serif font-bold tracking-tight text-white hidden sm:block">{t('app.title')}</h1>
+        </div>
+        <div className="flex items-center gap-2 md:gap-4">
+          <button onClick={() => setTraining(t => ({...t, metronomeEnabled: !t.metronomeEnabled}))} className={`p-1.5 md:px-3 md:py-1.5 rounded-full border transition-all duration-300 flex items-center gap-2 ${training.metronomeEnabled ? 'bg-yellow-500 text-black border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.4)]' : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'}`}>
+            <MetronomeIcon /> <span className="hidden md:inline font-bold text-sm">{t('app.metronome')}</span>
+          </button>
+          <button onClick={() => setShowTrainingPanel(true)} className={`flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-1.5 rounded-full border transition-all duration-300 ${training.isActive ? 'bg-yellow-500 text-black border-yellow-500 shadow-lg' : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'}`}>
+            <WhistleIcon /> <span className="hidden md:inline font-bold text-sm tracking-tight">{t('app.coachMode')}</span>
+          </button>
+          <button onClick={() => setShowSettings(true)} className="flex items-center gap-2 p-2 md:px-3 md:py-1.5 rounded-full border border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 transition-all">
+            <SettingsIcon /> <span className="hidden md:inline font-bold text-sm tracking-tight">{t('app.settings')}</span>
+          </button>
+          {user?.role === 'admin' && (
+            <button onClick={() => setShowUserManagement(true)} className="flex items-center gap-2 p-2 md:px-3 md:py-1.5 rounded-full border border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 transition-all">
+              <ShieldCheckIcon /> <span className="hidden md:inline font-bold text-sm tracking-tight">{t('app.adminUsers')}</span>
             </button>
-
-            <button 
-              onClick={() => setShowTrainingPanel(true)}
-              className={`flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-1.5 rounded-full border transition-all duration-300 ${training.isActive ? 'bg-yellow-500 text-black border-yellow-500 shadow-lg' : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'}`}
-            >
-              <WhistleIcon />
-              <span className="hidden md:inline font-bold text-sm tracking-tight">{t('app.coachMode')}</span>
+          )}
+          {(user?.role === 'admin' || user?.role === 'coach' || user?.isAdmin) && (
+            <button onClick={() => setShowAdmin(true)} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full border border-white/10 transition text-sm">
+              <PlusIcon /> <span className="hidden md:inline">{t('app.upload')}</span>
             </button>
+          )}
+          <button onClick={() => user ? handleLogout() : setShowAuth(true)} className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-400 text-black px-3 py-1.5 md:px-4 md:py-1.5 rounded-full font-bold transition shadow-md text-sm">
+            <UserIcon /> <span className="hidden xs:inline">{user ? t('app.logout') : t('app.login')}</span>
+          </button>
+        </div>
+      </header>
 
-            <button 
-              onClick={() => setShowSettings(true)}
-              className="flex items-center gap-2 p-2 md:px-3 md:py-1.5 rounded-full border border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 transition-all"
-            >
-              <SettingsIcon />
-              <span className="hidden md:inline font-bold text-sm tracking-tight">{t('app.settings')}</span>
-            </button>
-
-            {user?.role === 'admin' && (
-              <button 
-                onClick={() => setShowUserManagement(true)}
-                className="flex items-center gap-2 p-2 md:px-3 md:py-1.5 rounded-full border border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 transition-all"
-              >
-                <ShieldCheckIcon />
-                <span className="hidden md:inline font-bold text-sm tracking-tight">{t('app.adminUsers')}</span>
-              </button>
-            )}
-            
-            {(user?.role === 'admin' || user?.role === 'coach' || user?.isAdmin) && (
-              <button onClick={() => setShowAdmin(true)} className="flex items-center gap-2 bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full border border-white/10 transition text-sm">
-                <PlusIcon /> <span className="hidden md:inline">{t('app.upload')}</span>
-              </button>
-            )}
-            
-            <button onClick={() => user ? handleLogout() : setShowAuth(true)} className="flex items-center gap-2 bg-yellow-500 hover:bg-yellow-400 text-black px-3 py-1.5 md:px-4 md:py-1.5 rounded-full font-bold transition shadow-md text-sm">
-              <UserIcon /> <span className="hidden xs:inline">{user ? t('app.logout') : t('app.login')}</span>
-            </button>
-          </div>
-        </header>
-
-        <main className="max-w-7xl mx-auto px-4 pt-4">
+      <main className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className={`max-w-7xl mx-auto px-4 pt-4 transition-all duration-300 ${player.currentTrack && isPlayerVisible ? 'pb-48 lg:pb-64' : 'pb-8'}`}>
           <div className="mb-4 flex flex-wrap gap-1.5 items-center">
             <button onClick={() => setActiveStyle('All')} className={`px-3 py-1.5 text-sm rounded-full transition ${activeStyle === 'All' ? 'bg-yellow-500 text-black' : 'bg-white/5 text-gray-400 border border-white/10'}`}>{t('app.all')}</button>
             <button onClick={() => setActiveStyle('Favorites')} className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-full transition ${activeStyle === 'Favorites' ? 'bg-rose-500 text-white' : 'bg-white/5 text-gray-400 border border-white/10'}`}><HeartIcon filled={activeStyle === 'Favorites'} /> {t('app.favorites')}</button>
@@ -577,23 +450,7 @@ const PlayerUI: React.FC = () => {
             {playlists.map(pl => (
               <div key={pl.id} className="relative group">
                 <button onClick={() => setActiveStyle(pl.id)} className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-full transition ${activeStyle === pl.id ? 'bg-indigo-500 text-white shadow-md' : 'bg-white/5 text-gray-400 border border-white/10'}`}><PlaylistIcon /> {pl.name}</button>
-                <button 
-                  onClick={(e) => { 
-                      e.stopPropagation(); 
-                      if (token) {
-                          fetch(`/api/playlists/${pl.id}`, { 
-                              method: 'DELETE', 
-                              headers: { 'Authorization': `Bearer ${token}` } 
-                          })
-                          .then(() => {
-                              setPlaylists(prev => prev.filter(p => p.id !== pl.id)); 
-                              if (activeStyle === pl.id) setActiveStyle('All');
-                          })
-                          .catch(console.error);
-                      }
-                  }} 
-                  className="absolute -top-1 -right-1 bg-red-500 text-white p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow-lg scale-75"
-                >
+                <button onClick={(e) => { e.stopPropagation(); if (token) { fetch(`/api/playlists/${pl.id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } }).then(() => { setPlaylists(prev => prev.filter(p => p.id !== pl.id)); if (activeStyle === pl.id) setActiveStyle('All'); }).catch(console.error); } }} className="absolute -top-1 -right-1 bg-red-500 text-white p-0.5 rounded-full opacity-0 group-hover:opacity-100 transition shadow-lg scale-75">
                   <TrashIcon />
                 </button>
               </div>
@@ -605,11 +462,7 @@ const PlayerUI: React.FC = () => {
             {filteredTracks.map(track => {
               const isThisCurrent = player.currentTrack?.id === track.id;
               return (
-                <div 
-                  key={track.id} 
-                  onClick={() => isThisCurrent ? togglePlay() : selectTrack(track)} 
-                  className={`group relative overflow-hidden bg-[#141414] border border-white/10 rounded-2xl p-3 hover:border-yellow-500/50 transition-all duration-300 cursor-pointer ${isThisCurrent ? 'border-yellow-500 ring-1 ring-yellow-500 shadow-[0_0_25px_rgba(234,179,8,0.15)] bg-yellow-500/5' : ''}`}
-                >
+                <div key={track.id} onClick={() => isThisCurrent ? togglePlay() : selectTrack(track)} className={`group relative overflow-hidden bg-[#141414] border border-white/10 rounded-2xl p-3 hover:border-yellow-500/50 transition-all duration-300 cursor-pointer ${isThisCurrent ? 'border-yellow-500 ring-1 ring-yellow-500 shadow-[0_0_25px_rgba(234,179,8,0.15)] bg-yellow-500/5' : ''}`}>
                   <div className="flex justify-between items-start mb-2">
                     <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded shadow-sm ${STYLE_COLORS[track.style]}`}>{t(`styles.${track.style}`)}</span>
                     <div className="flex items-center gap-2">
@@ -629,49 +482,27 @@ const PlayerUI: React.FC = () => {
                       <div className={`w-2 h-2 rounded-full transition-all duration-75 flex-shrink-0 ${isMetronomeVisualActive ? 'bg-yellow-500 scale-150 shadow-[0_0_10px_#eab308]' : 'bg-yellow-500/20'}`}></div>
                     )}
                   </div>
-                  
-                  {/* Edit Button */}
                   {(user?.isAdmin || user?.id === track.ownerId) && (
-                      <button 
-                          onClick={(e) => { e.stopPropagation(); setTrackToEdit(track); }}
-                          className="absolute bottom-2 right-2 p-1.5 bg-black/60 hover:bg-yellow-500 text-gray-400 hover:text-black rounded-lg transition-all backdrop-blur-sm opacity-0 group-hover:opacity-100 z-10"
-                      >
+                      <button onClick={(e) => { e.stopPropagation(); setTrackToEdit(track); }} className="absolute bottom-2 right-2 p-1.5 bg-black/60 hover:bg-yellow-500 text-gray-400 hover:text-black rounded-lg transition-all backdrop-blur-sm opacity-0 group-hover:opacity-100 z-10">
                           <PencilIcon />
                       </button>
                   )}
-
-                  {/* Play/Pause Overlay Icon */}
-                  <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 pointer-events-none 
-                    ${isThisCurrent && player.isPlaying 
-                      ? 'bg-yellow-500/80 text-black scale-100 backdrop-blur-sm' // Playing state
-                      : 'bg-black/60 text-white scale-0 group-hover:scale-100' // Paused/Hover state
-                    }`}
-                  >
+                  <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-200 pointer-events-none ${isThisCurrent && player.isPlaying ? 'bg-yellow-500/80 text-black scale-100 backdrop-blur-sm' : 'bg-black/60 text-white scale-0 group-hover:scale-100'}`}>
                     {isThisCurrent && player.isPlaying ? <PauseIcon /> : <PlayIcon />}
                   </div>
-
                 </div>
               );
             })}
           </div>
-          
-          {/* Динамическая распорка для учета высоты плеера */}
-          {player.currentTrack && isPlayerVisible && (
-            <div className="h-48 lg:h-64" />
-          )}
-        </main>
+        </div>
+      </main>
 
-        {/* Floating Player */}
-        {player.currentTrack && isPlayerVisible && (
+      {player.currentTrack && isPlayerVisible && (
         <div className="fixed bottom-0 inset-x-0 z-50 bg-black/90 backdrop-blur-2xl border-t border-white/10 px-6 py-4 lg:py-6 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] animate-in slide-in-from-bottom duration-300">
           <div className="max-w-7xl mx-auto relative">
-            <button 
-              onClick={() => setIsPlayerVisible(false)}
-              className="absolute -top-12 right-0 bg-black/80 text-gray-400 hover:text-white p-2 rounded-t-xl border-t border-x border-white/10 flex items-center gap-2 text-xs font-bold transition-all"
-            >
+            <button onClick={() => setIsPlayerVisible(false)} className="absolute -top-12 right-0 bg-black/80 text-gray-400 hover:text-white p-2 rounded-t-xl border-t border-x border-white/10 flex items-center gap-2 text-xs font-bold transition-all">
               {t('player.hide')} <span>▼</span>
             </button>
-
             <div className="flex flex-col gap-4">
               {player.isPauseCountdown && (
                 <div className="flex items-center justify-center gap-4 py-3 bg-yellow-500/20 border border-yellow-500/40 rounded-2xl animate-pulse shadow-lg">
@@ -682,7 +513,6 @@ const PlayerUI: React.FC = () => {
                   </div>
                 </div>
               )}
-              
               <div className="grid grid-cols-1 lg:grid-cols-3 items-center gap-6">
                 <div className="flex items-center gap-4">
                   <div className={`w-14 h-14 rounded-xl flex-shrink-0 flex items-center justify-center ${STYLE_COLORS[player.currentTrack.style]} text-white shadow-2xl relative overflow-hidden`}>
@@ -694,7 +524,6 @@ const PlayerUI: React.FC = () => {
                     <p className="text-gray-400 text-sm truncate">{player.currentTrack.artist} • {t(`styles.${player.currentTrack.style}`)}</p>
                   </div>
                 </div>
-
                 <div className="flex flex-col items-center gap-3">
                   <div className="flex items-center gap-4">
                     <button onClick={() => setPlayer(p => ({...p, isShuffle: !p.isShuffle}))} className="text-gray-500 hover:text-white transition-all"><ShuffleIcon active={player.isShuffle} /></button>
@@ -705,7 +534,6 @@ const PlayerUI: React.FC = () => {
                     <button onClick={() => skip('next')} className="text-gray-500 hover:text-white transition-all hover:scale-110"><SkipForward /></button>
                     <button onClick={() => setPlayer(p => ({...p, isRepeat: !p.isRepeat}))} className="text-gray-500 hover:text-white transition-all"><RepeatIcon active={player.isRepeat} /></button>
                   </div>
-                  
                   <div className="w-full flex items-center gap-3 text-[11px] font-mono text-gray-500 font-bold">
                     <span>{Math.floor(player.currentTime / 60)}:{(Math.floor(player.currentTime % 60)).toString().padStart(2, '0')}</span>
                     <div className="relative flex-1 h-2 rounded-full bg-white/5 overflow-hidden group">
@@ -715,15 +543,11 @@ const PlayerUI: React.FC = () => {
                     <span>{Math.floor(player.duration / 60)}:{(Math.floor(player.duration % 60)).toString().padStart(2, '0')}</span>
                   </div>
                 </div>
-
                 <div className="flex items-center justify-end gap-6">
                   <div className="flex flex-col items-center bg-white/5 rounded-xl p-2 border border-white/10 shadow-inner">
                     <div className="flex items-center justify-between w-full mb-1">
                       <span className="text-[10px] text-gray-500 font-black uppercase tracking-widest">{t('player.bpm')}</span>
-                      <button 
-                        onClick={() => setTraining(t => ({...t, metronomeEnabled: !t.metronomeEnabled}))}
-                        className={`transition-colors ${training.metronomeEnabled ? 'text-yellow-500' : 'text-gray-600'}`}
-                      >
+                      <button onClick={() => setTraining(t => ({...t, metronomeEnabled: !t.metronomeEnabled}))} className={`transition-colors ${training.metronomeEnabled ? 'text-yellow-500' : 'text-gray-600'}`}>
                         <MetronomeIcon />
                       </button>
                     </div>
@@ -736,7 +560,6 @@ const PlayerUI: React.FC = () => {
                       <button onClick={() => adjustBpmInPlayer(1)} className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 text-white font-bold transition flex items-center justify-center shadow-md">+</button>
                     </div>
                   </div>
-
                   <div className="flex flex-col gap-1 w-28">
                     <div className="flex justify-between text-[10px] text-gray-400 font-black uppercase tracking-tighter">
                       <span>{t('player.speed')}</span>
@@ -751,35 +574,14 @@ const PlayerUI: React.FC = () => {
         </div>
       )}
 
-      {/* Mini Restore Button */}
       {player.currentTrack && !isPlayerVisible && (
-        <button 
-          onClick={() => setIsPlayerVisible(true)}
-          className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-yellow-500 text-black rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all animate-bounce"
-        >
+        <button onClick={() => setIsPlayerVisible(true)} className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-yellow-500 text-black rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all animate-bounce">
           <PlayIcon />
         </button>
       )}
 
-      <audio 
-        ref={audioRef}
-        crossOrigin="anonymous"
-        src={player.currentTrack?.url}
-        preload="metadata"
-        onTimeUpdate={() => { if (audioRef.current) setPlayer(p => ({ ...p, currentTime: audioRef.current?.currentTime || 0, duration: audioRef.current?.duration || 0 })); }}
-        onEnded={() => {
-            if (player.isRepeat) {
-                if (audioRef.current) {
-                    audioRef.current.currentTime = 0;
-                    audioRef.current.play().catch(console.error);
-                }
-            } else {
-                skip('next');
-            }
-        }}
-      />
+      <audio ref={audioRef} crossOrigin="anonymous" src={player.currentTrack?.url} preload="metadata" onTimeUpdate={() => { if (audioRef.current) setPlayer(p => ({ ...p, currentTime: audioRef.current?.currentTime || 0, duration: audioRef.current?.duration || 0 })); }} onEnded={() => { if (player.isRepeat) { if (audioRef.current) { audioRef.current.currentTime = 0; audioRef.current.play().catch(console.error); } } else { skip('next'); } }} />
 
-      {/* TRAINING MODAL */}
       {showTrainingPanel && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-2xl p-4 transition-all">
           <div className="bg-[#1a1a1a] border border-white/10 p-8 rounded-[2.5rem] w-full max-w-lg shadow-2xl relative overflow-hidden">
@@ -791,7 +593,6 @@ const PlayerUI: React.FC = () => {
               <button onClick={() => setShowTrainingPanel(false)} className="text-gray-400 hover:text-white text-3xl font-light">&times;</button>
             </div>
             <div className="space-y-6">
-              {/* Autopilot Card */}
               <div className="p-6 bg-white/5 rounded-3xl border border-white/10 space-y-6">
                 <div className="flex items-center justify-between gap-4">
                   <div>
@@ -802,7 +603,6 @@ const PlayerUI: React.FC = () => {
                     <div className={`w-7 h-7 rounded-full bg-black transition-all transform ${training.isActive ? 'translate-x-7' : 'translate-x-0'}`} />
                   </button>
                 </div>
-                
                 {training.isActive && (
                   <div className="space-y-6 pt-2 animate-in fade-in slide-in-from-top-2 duration-300">
                     <div>
@@ -816,7 +616,6 @@ const PlayerUI: React.FC = () => {
                   </div>
                 )}
               </div>
-
             </div>
             <button onClick={() => setShowTrainingPanel(false)} className="w-full mt-12 py-5 bg-yellow-500 text-black font-black uppercase rounded-[1.5rem] hover:bg-yellow-400 transition-all">
               {t('coach.close')}
@@ -825,7 +624,6 @@ const PlayerUI: React.FC = () => {
         </div>
       )}
 
-      {/* SETTINGS MODAL */}
       {showSettings && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-2xl p-4 transition-all">
           <div className="bg-[#1a1a1a] border border-white/10 p-8 rounded-[2.5rem] w-full max-w-lg shadow-2xl relative overflow-hidden">
@@ -837,7 +635,6 @@ const PlayerUI: React.FC = () => {
               <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-white text-3xl font-light">&times;</button>
             </div>
             <div className="space-y-6">
-              {/* Language Selector */}
               <div className="p-6 bg-white/5 rounded-3xl border border-white/10 flex flex-col xs:flex-row items-center justify-between gap-4">
                  <div className="flex items-center gap-3 w-full xs:w-auto">
                    <div className="w-10 h-10 rounded-full bg-yellow-500/10 flex items-center justify-center text-yellow-500 font-bold text-sm uppercase shrink-0">
@@ -850,18 +647,12 @@ const PlayerUI: React.FC = () => {
                  </div>
                  <div className="flex gap-1 bg-black/40 rounded-xl p-1 border border-white/5 w-full xs:w-auto justify-center">
                     {['en', 'es', 'ru'].map(lang => (
-                        <button 
-                           key={lang} 
-                           onClick={() => i18n.changeLanguage(lang)}
-                           className={`px-3 py-2 rounded-lg text-xs font-bold uppercase transition flex-1 xs:flex-none text-center ${i18n.language.startsWith(lang) ? 'bg-yellow-500 text-black shadow-md' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}
-                        >
+                        <button key={lang} onClick={() => i18n.changeLanguage(lang)} className={`px-3 py-2 rounded-lg text-xs font-bold uppercase transition flex-1 xs:flex-none text-center ${i18n.language.startsWith(lang) ? 'bg-yellow-500 text-black shadow-md' : 'text-gray-500 hover:text-white hover:bg-white/5'}`}>
                             {lang}
                         </button>
                     ))}
                  </div>
               </div>
-
-              {/* Notifications */}
               <div className="p-6 bg-white/5 rounded-3xl border border-white/10 flex flex-col xs:flex-row items-center justify-between gap-4">
                 <div className="flex items-center gap-3 w-full xs:w-auto">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${notificationPermission === 'granted' ? 'bg-green-500/20 text-green-500' : 'bg-gray-500/20 text-gray-500'}`}>
@@ -870,52 +661,34 @@ const PlayerUI: React.FC = () => {
                   <div>
                     <h4 className="text-white font-bold text-lg">{t('app.notifications')}</h4>
                     <p className="text-xs text-gray-500">
-                      {notificationPermission === 'granted' 
-                        ? t('app.notificationsOn') 
-                        : t('app.notificationsOff')}
+                      {notificationPermission === 'granted' ? t('app.notificationsOn') : t('app.notificationsOff')}
                     </p>
                   </div>
                 </div>
                 {notificationPermission !== 'granted' && (
-                  <button 
-                    onClick={handleRequestNotification}
-                    className="w-full xs:w-auto px-4 py-2 bg-yellow-500 text-black font-bold rounded-xl text-xs uppercase tracking-wider hover:bg-yellow-400 transition whitespace-nowrap"
-                  >
+                  <button onClick={handleRequestNotification} className="w-full xs:w-auto px-4 py-2 bg-yellow-500 text-black font-bold rounded-xl text-xs uppercase tracking-wider hover:bg-yellow-400 transition whitespace-nowrap">
                     {t('app.enable')}
                   </button>
                 )}
               </div>
-
-              {/* Coach: Invite Student */}
               {user?.role === 'coach' && (
                 <div className="p-6 bg-yellow-500/10 rounded-3xl border border-yellow-500/20 flex flex-col xs:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-3 w-full xs:w-auto text-left">
-                    <div className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-black text-xl shrink-0">
-                      👥
-                    </div>
+                    <div className="w-10 h-10 rounded-full bg-yellow-500 flex items-center justify-center text-black text-xl shrink-0">👥</div>
                     <div>
                       <h4 className="text-white font-bold text-lg">{t('app.inviteTitle') || 'Invite Students'}</h4>
                       <p className="text-xs text-gray-500">{t('app.inviteDesc') || 'Students register via your link'}</p>
                     </div>
                   </div>
-                  <button 
-                    onClick={copyInviteLink}
-                    className="w-full xs:w-auto px-6 py-2.5 bg-yellow-500 text-black font-black rounded-xl text-xs uppercase tracking-widest hover:bg-yellow-400 transition whitespace-nowrap shadow-lg shadow-yellow-500/20"
-                  >
+                  <button onClick={copyInviteLink} className="w-full xs:w-auto px-6 py-2.5 bg-yellow-500 text-black font-black rounded-xl text-xs uppercase tracking-widest hover:bg-yellow-400 transition whitespace-nowrap shadow-lg shadow-yellow-500/20">
                     {t('app.copyLink') || 'Copy Link'}
                   </button>
                 </div>
               )}
-
               {user?.role === 'admin' && (
                 <div className="pt-6 border-t border-white/5 mt-6">
-                  <Link 
-                    to="/admin" 
-                    onClick={() => setShowSettings(false)}
-                    className="w-full py-4 bg-yellow-500/10 text-yellow-500 font-bold uppercase rounded-xl hover:bg-yellow-500/20 transition-all border border-yellow-500/20 flex items-center justify-center gap-3"
-                  >
-                    <ShieldCheckIcon size={20} />
-                    {t('admin.title') || 'Admin Panel'}
+                  <Link to="/admin" onClick={() => setShowSettings(false)} className="w-full py-4 bg-yellow-500/10 text-yellow-500 font-bold uppercase rounded-xl hover:bg-yellow-500/20 transition-all border border-yellow-500/20 flex items-center justify-center gap-3">
+                    <ShieldCheckIcon size={20} /> {t('admin.title') || 'Admin Panel'}
                   </Link>
                 </div>
               )}
@@ -923,9 +696,7 @@ const PlayerUI: React.FC = () => {
             <button onClick={() => setShowSettings(false)} className="w-full mt-12 py-5 bg-white/5 text-white font-bold uppercase rounded-[1.5rem] hover:bg-white/10 transition-all border border-white/10">
               {t('pwa.close')}
             </button>
-            <div className="mt-8 text-[10px] text-gray-600 text-center uppercase tracking-widest font-bold">
-                v{APP_VERSION} • tempo.TRFNV
-            </div>
+            <div className="mt-8 text-[10px] text-gray-600 text-center uppercase tracking-widest font-bold">v{APP_VERSION} • tempo.TRFNV</div>
           </div>
         </div>
       )}
@@ -938,37 +709,16 @@ const PlayerUI: React.FC = () => {
                 e.preventDefault(); 
                 const name = (e.target as any).playlistName.value; 
                 if (name && token) { 
-                    fetch('/api/playlists', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-                        body: JSON.stringify({ name })
-                    })
-                    .then(res => res.json())
-                    .then(newPl => setPlaylists(prev => [...prev, newPl]))
-                    .catch(console.error);
+                    fetch('/api/playlists', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ name }) }).then(res => res.json()).then(newPl => setPlaylists(prev => [...prev, newPl])).catch(console.error);
                     setShowPlaylistCreator(false); 
                 } 
             }}>
-              <input 
-                name="playlistName" 
-                type="text" 
-                autoFocus 
-                required 
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white mb-8 outline-none focus:border-yellow-500 transition select-text placeholder:text-gray-600" 
-                placeholder={t('app.playlistName')} 
-              />
+              <input name="playlistName" type="text" autoFocus required className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white mb-8 outline-none focus:border-yellow-500 transition select-text placeholder:text-gray-600" placeholder={t('app.playlistName')} />
               <div className="flex gap-3">
-                <button 
-                  type="button" 
-                  onClick={() => setShowPlaylistCreator(false)} 
-                  className="flex-1 py-3.5 rounded-xl text-gray-400 font-bold hover:bg-white/5 hover:text-white transition uppercase text-xs tracking-wider"
-                >
+                <button type="button" onClick={() => setShowPlaylistCreator(false)} className="flex-1 py-3.5 rounded-xl text-gray-400 font-bold hover:bg-white/5 hover:text-white transition uppercase text-xs tracking-wider">
                   {t('app.cancel')}
                 </button>
-                <button 
-                  type="submit" 
-                  className="flex-1 py-3.5 bg-yellow-500 text-black font-bold rounded-xl hover:bg-yellow-400 transition uppercase text-xs tracking-wider shadow-lg"
-                >
+                <button type="submit" className="flex-1 py-3.5 bg-yellow-500 text-black font-bold rounded-xl hover:bg-yellow-400 transition uppercase text-xs tracking-wider shadow-lg">
                   {t('app.create')}
                 </button>
               </div>
@@ -977,36 +727,13 @@ const PlayerUI: React.FC = () => {
         </div>
       )}
 
-      {showAdmin && (
-        <UploadTrackModal 
-          onAddTrack={handleAddTrack} 
-          onClose={() => setShowAdmin(false)} 
-        />
-      )}
+      {showAdmin && <UploadTrackModal onAddTrack={handleAddTrack} onClose={() => setShowAdmin(false)} />}
       {showUserManagement && <UserManagementModal onClose={() => setShowUserManagement(false)} />}
       {showAuth && <AuthModal onLogin={handleLogin} onClose={() => setShowAuth(false)} />}
-      {playlistModalTrackId && (
-        <AddToPlaylistModal 
-            playlists={playlists} 
-            trackId={playlistModalTrackId} 
-            onClose={() => setPlaylistModalTrackId(null)} 
-            onToggle={toggleTrackInPlaylist}
-        />
-      )}
+      {playlistModalTrackId && <AddToPlaylistModal playlists={playlists} trackId={playlistModalTrackId} onClose={() => setPlaylistModalTrackId(null)} onToggle={toggleTrackInPlaylist} />}
       {trackToEdit && (
-        <EditTrackModal
-          track={trackToEdit}
-          user={user}
-          onClose={() => setTrackToEdit(null)}
-          onSave={handleSaveTrack}
-          onDelete={
-            (user?.role === 'admin' || user?.id === trackToEdit.ownerId) 
-              ? () => { deleteTrack(trackToEdit.id); setTrackToEdit(null); } 
-              : undefined
-          }
-        />
+        <EditTrackModal track={trackToEdit} user={user} onClose={() => setTrackToEdit(null)} onSave={handleSaveTrack} onDelete={(user?.role === 'admin' || user?.id === trackToEdit.ownerId) ? () => { deleteTrack(trackToEdit.id); setTrackToEdit(null); } : undefined} />
       )}
-      
       <UpdateNotification />
       <ReloadPrompt />
     </div>

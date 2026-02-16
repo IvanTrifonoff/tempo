@@ -5,7 +5,7 @@ import AdminPage from './components/admin/AdminPage';
 
 const App: React.FC = () => {
   return (
-    <div className="min-h-screen bg-[#0a0a0a] text-white selection:bg-rose-500/30">
+    <div className="h-screen w-full overflow-hidden bg-[#0a0a0a] text-white selection:bg-rose-500/30 flex flex-col">
       <Routes>
         <Route path="/admin/*" element={<AdminPage />} />
         <Route path="/" element={<PlayerUI />} />
