@@ -565,7 +565,7 @@ const PlayerUI: React.FC = () => {
           </div>
         </header>
 
-        <main className="max-w-7xl mx-auto px-4 pt-4 pb-44">
+        <main className="max-w-7xl mx-auto px-4 pt-4">
           <div className="mb-4 flex flex-wrap gap-1.5 items-center">
             <button onClick={() => setActiveStyle('All')} className={`px-3 py-1.5 text-sm rounded-full transition ${activeStyle === 'All' ? 'bg-yellow-500 text-black' : 'bg-white/5 text-gray-400 border border-white/10'}`}>{t('app.all')}</button>
             <button onClick={() => setActiveStyle('Favorites')} className={`flex items-center gap-2 px-3 py-1.5 text-sm rounded-full transition ${activeStyle === 'Favorites' ? 'bg-rose-500 text-white' : 'bg-white/5 text-gray-400 border border-white/10'}`}><HeartIcon filled={activeStyle === 'Favorites'} /> {t('app.favorites')}</button>
@@ -654,6 +654,11 @@ const PlayerUI: React.FC = () => {
               );
             })}
           </div>
+          
+          {/* Динамическая распорка для учета высоты плеера */}
+          {player.currentTrack && isPlayerVisible && (
+            <div className="h-48 lg:h-64" />
+          )}
         </main>
 
         {/* Floating Player */}
