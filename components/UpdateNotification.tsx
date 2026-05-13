@@ -10,6 +10,13 @@ const UpdateNotification: React.FC = () => {
   useEffect(() => {
     const checkUpdate = async () => {
         const savedVersion = localStorage.getItem('app_version');
+        const token = localStorage.getItem('token');
+        
+        // Silently save version for new devices/users or guests
+        if (!savedVersion || !token) {
+            localStorage.setItem('app_version', APP_VERSION);
+            return;
+        }
         
         if (savedVersion !== APP_VERSION) {
             // Fetch changelog from API
