@@ -2,9 +2,11 @@ import db from '../db/index.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 
 export const getStats = asyncHandler(async (req, res) => {
-    const userCount = await db.query('SELECT count(*) FROM users');
-    const trackCount = await db.query('SELECT count(*) FROM tracks');
-    const recentUsers = await db.query('SELECT count(*) FROM users WHERE created_at > NOW() - INTERVAL \'24 hours\'');
+    const [userCount, trackCount, recentUsers] = await Promise.all([
+        db.query('SELECT count(*) FROM users'),
+        db.query('SELECT count(*) FROM tracks'),
+        db.query('SELECT count(*) FROM users WHERE created_at > NOW() - INTERVAL \'24 hours\'')
+    ]);
     
     res.json({
         totalUsers: parseInt(userCount.rows[0].count),

@@ -10,14 +10,7 @@ import limitService from '../services/limitService.js';
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
 export const getTracks = asyncHandler(async (req, res) => {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    let user = null;
-    
-    if (token) {
-        try { user = jwt.verify(token, JWT_SECRET); } catch(e) {}
-    }
-
+    const user = req.user;
     let query = 'SELECT * FROM tracks WHERE is_public = true';
     let params = [];
 
@@ -133,27 +126,39 @@ export const createTrack = asyncHandler(async (req, res) => {
 
 export const deleteTrack = asyncHandler(async (req, res) => {
     const { rows } = await db.query('SELECT * FROM tracks WHERE id = $1', [req.params.id]);
-    if (rows.length === 0) return res.status(404).json({error: 'Track not found'});
+    if (rows.length === 0) return res.status(404).json({ error: 'Track not found' });
     const track = rows[0];
 
     if (req.user.role !== 'admin' && track.owner_id !== req.user.id) {
         return res.status(403).json({ error: 'Denied' });
     }
 
-    if (track.url && track.url.startsWith('/uploads/')) {
-         try {
-             const fileName = path.basename(track.url);
-             fs.unlinkSync(path.join(UPLOADS_PATH, fileName));
-        } catch (e) {}
+    const client = await db.pool.connect();
+    try {
+        await client.query('BEGIN');
+        await client.query('DELETE FROM tracks WHERE id = $1', [req.params.id]);
+        
+        if (track.url && track.url.startsWith('/uploads/')) {
+            const fileName = path.basename(track.url);
+            const filePath = path.join(UPLOADS_PATH, fileName);
+            if (fs.existsSync(filePath)) {
+                await fs.promises.unlink(filePath);
+            }
+        }
+        
+        await client.query('COMMIT');
+        res.json({ success: true });
+    } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+    } finally {
+        client.release();
     }
-    
-    await db.query('DELETE FROM tracks WHERE id = $1', [req.params.id]);
-    res.json({success: true});
 });
 
 export const updateTrack = asyncHandler(async (req, res) => {
     const { rows } = await db.query('SELECT * FROM tracks WHERE id = $1', [req.params.id]);
-    if (rows.length === 0) return res.status(404).json({error: 'Not found'});
+    if (rows.length === 0) return res.status(404).json({ error: 'Not found' });
     const track = rows[0];
     
     if (req.user.role !== 'admin' && track.owner_id !== req.user.id) {
@@ -168,7 +173,8 @@ export const updateTrack = asyncHandler(async (req, res) => {
     if (req.body.artist) { updates.push(`artist = $${idx++}`); values.push(req.body.artist); }
     if (req.body.bpm) { updates.push(`bpm = $${idx++}`); values.push(Number(req.body.bpm)); }
     if (req.body.style) { updates.push(`style = $${idx++}`); values.push(req.body.style); }
-    
+    if (req.body.isPublic !== undefined) { updates.push(`is_public = $${idx++}`); values.push(req.body.isPublic); }
+
     if (updates.length > 0) {
         values.push(req.params.id);
         const { rows: updatedRows } = await db.query(
@@ -176,7 +182,7 @@ export const updateTrack = asyncHandler(async (req, res) => {
             values
         );
         const updated = updatedRows[0];
-         res.json({
+        res.json({
             id: updated.id,
             title: updated.title,
             artist: updated.artist,
@@ -204,12 +210,17 @@ export const toggleFavorite = asyncHandler(async (req, res) => {
     const { trackId } = req.body;
     const userId = req.user.id;
     
-    const check = await db.query('SELECT 1 FROM user_favorites WHERE user_id = $1 AND track_id = $2', [userId, trackId]);
+    // Atomic toggle: Try to delete first. If 0 rows deleted, it wasn't a favorite, so insert.
+    const deleteRes = await db.query(
+        'DELETE FROM user_favorites WHERE user_id = $1 AND track_id = $2', 
+        [userId, trackId]
+    );
     
-    if (check.rows.length > 0) {
-        await db.query('DELETE FROM user_favorites WHERE user_id = $1 AND track_id = $2', [userId, trackId]);
-    } else {
-        await db.query('INSERT INTO user_favorites (user_id, track_id) VALUES ($1, $2)', [userId, trackId]);
+    if (deleteRes.rowCount === 0) {
+        await db.query(
+            'INSERT INTO user_favorites (user_id, track_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', 
+            [userId, trackId]
+        );
     }
 
     const favsRes = await db.query('SELECT track_id FROM user_favorites WHERE user_id = $1', [userId]);
