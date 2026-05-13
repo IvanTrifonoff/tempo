@@ -6,45 +6,12 @@ import { UPLOADS_PATH } from '../middleware/upload.js';
 import jwt from 'jsonwebtoken';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import limitService from '../services/limitService.js';
+import trackService from '../services/trackService.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
 export const getTracks = asyncHandler(async (req, res) => {
-    const user = req.user;
-    let query = 'SELECT * FROM tracks WHERE is_public = true';
-    let params = [];
-
-    if (user) {
-        if (user.role === 'admin') {
-            query = 'SELECT * FROM tracks ORDER BY created_at DESC';
-        } else if (user.role === 'coach') {
-            query = 'SELECT * FROM tracks WHERE is_public = true OR owner_id = $1 ORDER BY created_at DESC';
-            params = [user.id];
-        } else if (user.role === 'student') {
-            const coachId = user.coachId; 
-            if (coachId) {
-                query = 'SELECT * FROM tracks WHERE is_public = true OR owner_id = $1 ORDER BY created_at DESC';
-                params = [coachId];
-            } else {
-                 query = 'SELECT * FROM tracks WHERE is_public = true ORDER BY created_at DESC';
-            }
-        }
-    }
-
-    const { rows } = await db.query(query, params);
-    
-    const tracks = rows.map(row => ({
-        id: row.id,
-        title: row.title,
-        artist: row.artist,
-        style: row.style,
-        bpm: row.bpm,
-        url: row.url,
-        ownerId: row.owner_id,
-        isPublic: row.is_public,
-        isPreloaded: row.is_preloaded
-    }));
-    
+    const tracks = await trackService.getVisibleTracksForUser(req.user);
     res.json(tracks);
 });
 

@@ -10,5 +10,7 @@ router.use(isAdmin);
 router.get('/stats', adminController.getStats);
 router.get('/users', adminController.getUsers);
 router.patch('/users/:id', adminController.updateUser);
+router.delete('/users/:id', adminController.deleteUser);
+router.get('/logs', adminController.getActivityLogs);
 
 export default router;
