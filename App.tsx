@@ -2,8 +2,11 @@ import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import PlayerUI from './PlayerUI';
 import AdminPage from './components/admin/AdminPage';
+import { useHeartbeat } from './hooks/useHeartbeat';
 
 const App: React.FC = () => {
+  useHeartbeat();
+
   return (
     <div className="h-screen w-full overflow-hidden bg-[#0a0a0a] text-white selection:bg-rose-500/30 flex flex-col">
       <Routes>

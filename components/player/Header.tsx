@@ -38,12 +38,7 @@ const Header: React.FC<HeaderProps> = ({
     return (
         <header className="flex-shrink-0 z-40 bg-black/80 backdrop-blur-md border-b border-white/10 px-4 py-2 flex justify-between items-center">
             <div className="flex items-center gap-3">
-                {user && (
-                    <button onClick={() => setShowReview(true)} className="flex items-center gap-2 p-2 md:px-3 md:py-1.5 rounded-full border border-yellow-500/30 bg-yellow-500/10 text-yellow-500 hover:bg-yellow-500/20 transition-all">
-                        <StarIcon /> <span className="hidden sm:inline font-bold text-sm tracking-tight">{t('app.review') || 'Review'}</span>
-                    </button>
-                )}
-                <h1 className="text-xl font-serif font-bold tracking-tight text-white hidden lg:block">{t('app.title')}</h1>
+                <h1 className="text-xl font-serif font-bold tracking-tight text-white hidden sm:block">{t('app.title')}</h1>
                 {!isOnline && (
                     <div className="flex items-center gap-1.5 px-2 py-0.5 bg-white/5 border border-white/10 rounded-md text-gray-500 text-[10px] uppercase font-black tracking-widest">
                         <CloudOffIcon />
@@ -51,7 +46,12 @@ const Header: React.FC<HeaderProps> = ({
                     </div>
                 )}
             </div>
-            <div className="flex items-center gap-2 md:gap-4 flex-wrap justify-end">
+            <div className="flex items-center gap-2 md:gap-4">
+                {user && (
+                    <button onClick={() => setShowReview(true)} className="flex items-center gap-2 p-2 md:px-3 md:py-1.5 rounded-full border border-white/10 bg-white/5 text-yellow-500 hover:bg-yellow-500/10 transition-all">
+                        <StarIcon /> <span className="hidden md:inline font-bold text-sm tracking-tight">{t('app.review') || 'Review'}</span>
+                    </button>
+                )}
                 <button onClick={() => setTraining(t => ({ ...t, metronomeEnabled: !t.metronomeEnabled }))} className={`p-1.5 md:px-3 md:py-1.5 rounded-full border transition-all duration-300 flex items-center gap-2 ${training.metronomeEnabled ? 'bg-yellow-500 text-black border-yellow-500 shadow-[0_0_20px_rgba(234,179,8,0.4)]' : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10'}`}>
                     <MetronomeIcon /> <span className="hidden md:inline font-bold text-sm">{t('app.metronome')}</span>
                 </button>

@@ -27,8 +27,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     if (!show) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-2xl p-4 transition-all">
-            <div className="bg-[#1a1a1a] border border-white/10 p-6 md:p-8 rounded-[2.5rem] w-full max-w-lg shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-2xl p-4 transition-all overflow-hidden">
+            <div className="bg-[#1a1a1a] border border-white/10 p-6 md:p-8 rounded-[2.5rem] w-full max-w-lg shadow-2xl relative flex flex-col max-h-[90dvh]">
                 <div className="flex justify-between items-start mb-6 shrink-0">
                     <div>
                         <h2 className="text-2xl font-serif text-white font-bold mb-1">{t('app.settings')}</h2>
@@ -36,7 +36,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                     <button onClick={onClose} className="text-gray-400 hover:text-white text-3xl font-light">&times;</button>
                 </div>
-                <div className="space-y-4 overflow-y-auto custom-scrollbar flex-1 pr-2 pb-4">
+                
+                <div className="space-y-4 overflow-y-auto custom-scrollbar flex-1 pr-1 pb-4 -mr-2">
                     <div className="p-5 bg-white/5 rounded-3xl border border-white/10 flex flex-col xs:flex-row items-center justify-between gap-4">
                         <div className="flex items-center gap-3 w-full xs:w-auto">
                             <div className="w-10 h-10 rounded-full bg-yellow-500/10 flex items-center justify-center text-yellow-500 font-bold text-sm uppercase shrink-0">
@@ -55,6 +56,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                             ))}
                         </div>
                     </div>
+                    
                     <div className="p-5 bg-white/5 rounded-3xl border border-white/10 flex flex-col xs:flex-row items-center justify-between gap-4">
                         <div className="flex items-center gap-3 w-full xs:w-auto">
                             <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${notificationPermission === 'granted' ? 'bg-green-500/20 text-green-500' : 'bg-gray-500/20 text-gray-500'}`}>
@@ -73,6 +75,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                             </button>
                         )}
                     </div>
+                    
                     {user?.role === 'coach' && (
                         <div className="p-5 bg-yellow-500/10 rounded-3xl border border-yellow-500/20 flex flex-col xs:flex-row items-center justify-between gap-4">
                             <div className="flex items-center gap-3 w-full xs:w-auto text-left">
@@ -87,6 +90,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                             </button>
                         </div>
                     )}
+                    
                     {user?.role === 'admin' && (
                         <div className="pt-2">
                             <Link to="/admin" onClick={onClose} className="w-full py-4 bg-yellow-500/10 text-yellow-500 font-bold uppercase rounded-xl hover:bg-yellow-500/20 transition-all border border-yellow-500/20 flex items-center justify-center gap-3">
@@ -94,11 +98,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                             </Link>
                         </div>
                     )}
-                    
-                    <button onClick={onClose} className="w-full py-4 mt-4 bg-white/5 text-white font-bold uppercase rounded-2xl hover:bg-white/10 transition-all border border-white/10">
-                        {t('pwa.close')}
+                </div>
+
+                <div className="pt-4 shrink-0">
+                    <button onClick={onClose} className="w-full py-5 bg-yellow-500 text-black font-black uppercase rounded-[1.5rem] hover:bg-yellow-400 transition-all shadow-lg active:scale-95">
+                        {t('coach.close') || 'Close'}
                     </button>
-                    <div className="text-[10px] text-gray-600 text-center uppercase tracking-widest font-bold pt-4 pb-2 shrink-0">v{APP_VERSION} • tempo.TRFNV</div>
+                    <div className="mt-4 text-[10px] text-gray-600 text-center uppercase tracking-widest font-bold">v{APP_VERSION} • tempo.TRFNV</div>
                 </div>
             </div>
         </div>
