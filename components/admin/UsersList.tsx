@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useAdmin } from './AdminContext';
-import { Search, Shield, ShieldOff, CheckCircle, XCircle } from 'lucide-react';
+import { Search, Shield, ShieldOff, CheckCircle, XCircle, Trash2 } from 'lucide-react';
 
 const UsersList: React.FC = () => {
-    const { users, isLoading, fetchUsers, updateUser } = useAdmin();
+    const { users, isLoading, fetchUsers, updateUser, deleteUser } = useAdmin();
     const [search, setSearch] = useState('');
 
     useEffect(() => {
@@ -17,8 +17,8 @@ const UsersList: React.FC = () => {
                 <h1 className="text-3xl font-serif font-bold">Users Management</h1>
                 <div className="relative">
                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
-                    <input 
-                        type="text" 
+                    <input
+                        type="text"
                         placeholder="Search by email..."
                         className="bg-[#1a1a1a] border border-white/10 rounded-2xl pl-12 pr-6 py-3 w-80 focus:border-yellow-500 outline-none transition"
                         value={search}
@@ -47,9 +47,8 @@ const UsersList: React.FC = () => {
                                     <div className="text-xs text-gray-500 font-mono italic">{user.id}</div>
                                 </td>
                                 <td className="px-6 py-4">
-                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${
-                                        user.role === 'admin' ? 'bg-rose-500/20 text-rose-500' : 'bg-blue-500/20 text-blue-500'
-                                    }`}>
+                                    <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${user.role === 'admin' ? 'bg-rose-500/20 text-rose-500' : 'bg-blue-500/20 text-blue-500'
+                                        }`}>
                                         {user.role}
                                     </span>
                                 </td>
@@ -59,8 +58,8 @@ const UsersList: React.FC = () => {
                                     </span>
                                 </td>
                                 <td className="px-6 py-4">
-                                    <input 
-                                        type="number" 
+                                    <input
+                                        type="number"
                                         className="bg-black/50 border border-white/10 rounded-lg px-2 py-1 w-16 text-center focus:border-yellow-500 outline-none transition"
                                         defaultValue={user.trackLimit}
                                         onBlur={(e) => updateUser(user.id, { trackLimit: parseInt(e.target.value) })}
@@ -78,14 +77,12 @@ const UsersList: React.FC = () => {
                                     )}
                                 </td>
                                 <td className="px-6 py-4 text-right">
-                                    <button 
-                                        onClick={() => updateUser(user.id, { isBanned: !user.isBanned })}
-                                        className={`p-2 rounded-xl transition ${
-                                            user.isBanned ? 'bg-green-500/10 text-green-500 hover:bg-green-500/20' : 'bg-red-500/10 text-red-500 hover:bg-red-500/20'
-                                        }`}
-                                        title={user.isBanned ? 'Unban User' : 'Ban User'}
+                                    <button
+                                        onClick={() => deleteUser(user.id)}
+                                        className="p-2 rounded-xl bg-red-600/10 text-red-600 hover:bg-red-600/20 transition ml-2"
+                                        title="Delete User"
                                     >
-                                        {user.isBanned ? <Shield size={18} /> : <ShieldOff size={18} />}
+                                        <Trash2 size={18} />
                                     </button>
                                 </td>
                             </tr>

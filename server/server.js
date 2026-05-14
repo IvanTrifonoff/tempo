@@ -10,12 +10,14 @@ import logger from './config/logger.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 // Routes
+import webRoutes from './routes/web.js';
 import authRoutes from './routes/auth.js';
 import trackRoutes from './routes/tracks.js';
 import playlistRoutes from './routes/playlists.js';
 import userRoutes from './routes/users.js';
 import adminRoutes from './routes/admin.js';
-import { verifyEmail } from './controllers/authController.js';
+import changelogRoutes from './routes/changelog.js';
+import reviewRoutes from './routes/reviews.js';
 
 dotenv.config();
 
@@ -30,8 +32,6 @@ app.use(compression());
 app.use(cors());
 app.use(express.json());
 
-app.get('/verify', verifyEmail);
-
 // Request Logger (From Dev)
 app.use((req, res, next) => {
     console.log(`[${new Date().toISOString()}] Request: ${req.method} ${req.url}`);
@@ -42,20 +42,14 @@ app.use('/uploads', express.static(UPLOADS_PATH));
 app.use(express.static(path.join(__dirname, '../dist'), { maxAge: '1y', etag: false }));
 
 // API Routes
+app.use('/', webRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/tracks', trackRoutes);
 app.use('/api/playlists', playlistRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/admin/users', userRoutes);
 app.use('/api/user', userRoutes);
-
-app.get('/api/changelog/latest', async (req, res, next) => {
-    try {
-        const { rows } = await db.query('SELECT * FROM changelogs ORDER BY release_date DESC LIMIT 1');
-        if (rows.length > 0) res.json(rows[0]);
-        else res.json(null);
-    } catch (err) { next(err); }
-});
+app.use('/api/changelog', changelogRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 app.get('*', (req, res) => {
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');

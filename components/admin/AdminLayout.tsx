@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, Outlet, Link } from 'react-router-dom';
-import { LayoutDashboard, Users, Music, Settings, LogOut, ShieldAlert } from 'lucide-react';
+import { LayoutDashboard, Users, Music, Settings, LogOut, ShieldAlert, MessageSquare } from 'lucide-react';
 
 const AdminLayout: React.FC = () => {
     return (
@@ -18,6 +18,7 @@ const AdminLayout: React.FC = () => {
                     <AdminNavLink to="/admin" end icon={<LayoutDashboard size={20} />} label="Dashboard" />
                     <AdminNavLink to="/admin/users" icon={<Users size={20} />} label="Users" />
                     <AdminNavLink to="/admin/tracks" icon={<Music size={20} />} label="Tracks" />
+                    <AdminNavLink to="/admin/reviews" icon={<MessageSquare size={20} />} label="Reviews" />
                     <AdminNavLink to="/admin/logs" icon={<ShieldAlert size={20} />} label="Audit Logs" />
                 </nav>
 
@@ -38,8 +39,8 @@ const AdminLayout: React.FC = () => {
 };
 
 const AdminNavLink: React.FC<{ to: string; icon: React.ReactNode; label: string; end?: boolean }> = ({ to, icon, label, end }) => (
-    <NavLink 
-        to={to} 
+    <NavLink
+        to={to}
         end={end}
         className={({ isActive }) => `
             flex items-center gap-3 px-4 py-3 rounded-xl transition font-bold text-sm

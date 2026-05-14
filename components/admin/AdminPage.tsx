@@ -4,6 +4,9 @@ import { AdminProvider } from './AdminContext';
 import AdminLayout from './AdminLayout';
 import Dashboard from './Dashboard';
 import UsersList from './UsersList';
+import AdminTracksList from './AdminTracksList';
+import ActivityLogsList from './ActivityLogsList';
+import ReviewsList from './ReviewsList';
 
 const AdminPage: React.FC = () => {
     return (
@@ -12,8 +15,9 @@ const AdminPage: React.FC = () => {
                 <Route element={<AdminLayout />}>
                     <Route index element={<Dashboard />} />
                     <Route path="users" element={<UsersList />} />
-                    <Route path="tracks" element={<div className="p-8 text-center text-gray-500 italic">Tracks management coming soon...</div>} />
-                    <Route path="logs" element={<div className="p-8 text-center text-gray-500 italic">Audit logs coming soon...</div>} />
+                    <Route path="tracks" element={<AdminTracksList />} />
+                    <Route path="reviews" element={<ReviewsList />} />
+                    <Route path="logs" element={<ActivityLogsList />} />
                     <Route path="*" element={<Navigate to="" replace />} />
                 </Route>
             </Routes>

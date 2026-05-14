@@ -121,3 +121,12 @@ export const verifyEmail = asyncHandler(async (req, res) => {
     `);
 });
 
+export const heartbeat = asyncHandler(async (req, res) => {
+    const userId = req.user?.id;
+    await db.query(
+        'INSERT INTO activity_logs (user_id, action, ip_address, user_agent) VALUES ($1, $2, $3, $4)',
+        [userId, 'HEARTBEAT', req.ip, req.headers['user-agent']]
+    );
+    res.json({ success: true });
+});
+

@@ -1,11 +1,12 @@
 import express from 'express';
 import * as authController from '../controllers/authController.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, optionalAuth } from '../middleware/auth.js';
 
 const router = express.Router();
 
 router.post('/register', authController.register);
 router.post('/login', authController.login);
+router.post('/heartbeat', optionalAuth, authController.heartbeat);
 router.get('/me', authenticateToken, authController.getMe);
 // Verify is handled at root level usually because of email link, but let's keep it here or separate. 
 // The original server.js had /verify at root. I will move it here but note the prefix change.
