@@ -16,15 +16,15 @@ const TrainingModal: React.FC<TrainingModalProps> = ({ show, onClose, training, 
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-2xl p-4 transition-all">
-            <div className="bg-[#1a1a1a] border border-white/10 p-8 rounded-[2.5rem] w-full max-w-lg shadow-2xl relative overflow-hidden">
-                <div className="flex justify-between items-start mb-10">
+            <div className="bg-[#1a1a1a] border border-white/10 p-6 md:p-8 rounded-[2.5rem] w-full max-w-lg shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
+                <div className="flex justify-between items-start mb-6 shrink-0">
                     <div>
                         <h2 className="text-2xl font-serif text-white font-bold mb-1">{t('coach.title') || 'Coach Mode'}</h2>
                         <p className="text-gray-500 text-sm font-medium">{t('coach.subtitle') || 'Training Assistant'}</p>
                     </div>
                     <button onClick={onClose} className="text-gray-400 hover:text-white text-3xl font-light">&times;</button>
                 </div>
-                <div className="space-y-6">
+                <div className="space-y-6 overflow-y-auto custom-scrollbar flex-1 pr-2 pb-4">
                     <div className="p-6 bg-white/5 rounded-3xl border border-white/10 space-y-6">
                         <div className="flex items-center justify-between gap-4">
                             <div>
@@ -49,7 +49,7 @@ const TrainingModal: React.FC<TrainingModalProps> = ({ show, onClose, training, 
                         )}
                     </div>
                 </div>
-                <button onClick={onClose} className="w-full mt-12 py-5 bg-yellow-500 text-black font-black uppercase rounded-[1.5rem] hover:bg-yellow-400 transition-all">
+                <button onClick={onClose} className="w-full mt-4 py-5 bg-yellow-500 text-black font-black uppercase rounded-[1.5rem] hover:bg-yellow-400 transition-all shrink-0">
                     {t('coach.close')}
                 </button>
             </div>
