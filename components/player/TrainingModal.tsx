@@ -16,7 +16,7 @@ const TrainingModal: React.FC<TrainingModalProps> = ({ show, onClose, training, 
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 backdrop-blur-2xl p-4 transition-all">
-            <div className="bg-[#1a1a1a] border border-white/10 p-6 md:p-8 rounded-[2.5rem] w-full max-w-lg shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="bg-[#1a1a1a] border border-white/10 p-6 md:p-8 rounded-[2.5rem] w-full max-w-lg shadow-2xl relative overflow-hidden flex flex-col max-h-[85dvh]">
                 <div className="flex justify-between items-start mb-6 shrink-0">
                     <div>
                         <h2 className="text-2xl font-serif text-white font-bold mb-1">{t('coach.title') || 'Coach Mode'}</h2>

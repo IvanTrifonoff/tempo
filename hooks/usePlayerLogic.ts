@@ -218,9 +218,9 @@ export const usePlayerLogic = () => {
     const selectTrack = useCallback(async (track: Track) => {
         await resumeAudioContext();
 
-        let finalUrl = track.url;
-        if (await offlineStorage.isTrackDownloaded(track.url)) {
-            finalUrl = await offlineStorage.getTrackUrl(track.url);
+        let finalUrl = track?.url;
+        if (await offlineStorage.isTrackDownloaded(track?.url)) {
+            finalUrl = await offlineStorage.getTrackUrl(track?.url);
         }
 
         setPlayer(prev => ({
@@ -233,7 +233,7 @@ export const usePlayerLogic = () => {
             isPauseCountdown: false
         }));
         setIsPlayerVisible(true);
-        logPlay(track.id);
+        logPlay(track?.id);
     }, [resumeAudioContext, logPlay]);
 
     const skip = useCallback((direction: 'next' | 'prev') => {
@@ -297,8 +297,8 @@ export const usePlayerLogic = () => {
         const checkOffline = async () => {
             const downloaded = new Set<string>();
             for (const track of tracks) {
-                if (await offlineStorage.isTrackDownloaded(track.url)) {
-                    downloaded.add(track.id);
+                if (await offlineStorage.isTrackDownloaded(track?.url)) {
+                    downloaded.add(track?.id);
                 }
             }
             setDownloadedTracks(downloaded);
@@ -433,26 +433,26 @@ export const usePlayerLogic = () => {
             return;
         }
 
-        const isDownloaded = downloadedTracks.has(track.id);
+        const isDownloaded = downloadedTracks.has(track?.id);
         if (isDownloaded) {
-            await offlineStorage.deleteTrack(track.url);
+            await offlineStorage.deleteTrack(track?.url);
             setDownloadedTracks(prev => {
                 const next = new Set(prev);
-                next.delete(track.id);
+                next.delete(track?.id);
                 return next;
             });
         } else {
-            setDownloadingTracks(prev => new Set(prev).add(track.id));
+            setDownloadingTracks(prev => new Set(prev).add(track?.id));
             try {
-                await offlineStorage.downloadTrack(track.id, track.url);
-                setDownloadedTracks(prev => new Set(prev).add(track.id));
+                await offlineStorage.downloadTrack(track?.id, track?.url);
+                setDownloadedTracks(prev => new Set(prev).add(track?.id));
             } catch (err) {
                 console.error('Download failed:', err);
                 alert(t('app.downloadFailed') || 'Download failed');
             } finally {
                 setDownloadingTracks(prev => {
                     const next = new Set(prev);
-                    next.delete(track.id);
+                    next.delete(track?.id);
                     return next;
                 });
             }
