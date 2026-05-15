@@ -297,8 +297,13 @@ export const usePlayerLogic = () => {
         const checkOffline = async () => {
             const downloaded = new Set<string>();
             for (const track of tracks) {
-                if (await offlineStorage.isTrackDownloaded(track?.url)) {
-                    downloaded.add(track?.id);
+                if (!track?.url) continue; // CRITICAL: Skip tracks without URL to prevent cache.match error
+                try {
+                    if (await offlineStorage.isTrackDownloaded(track.url)) {
+                        downloaded.add(track.id);
+                    }
+                } catch (e) {
+                    console.warn("Offline check failed for track:", track.id, e);
                 }
             }
             setDownloadedTracks(downloaded);
