@@ -42,6 +42,7 @@ app.use('/uploads', express.static(UPLOADS_PATH));
 app.use(express.static(path.join(__dirname, '../dist'), { 
     maxAge: '1y', 
     etag: false,
+    index: false, // CRITICAL: Stop serving index.html with 1-year cache
     setHeaders: (res, path) => {
         if (path.endsWith('.html') || path.endsWith('sw.js')) {
             res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
