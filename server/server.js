@@ -39,7 +39,17 @@ app.use((req, res, next) => {
 });
 
 app.use('/uploads', express.static(UPLOADS_PATH));
-app.use(express.static(path.join(__dirname, '../dist'), { maxAge: '1y', etag: false }));
+app.use(express.static(path.join(__dirname, '../dist'), { 
+    maxAge: '1y', 
+    etag: false,
+    setHeaders: (res, path) => {
+        if (path.endsWith('.html') || path.endsWith('sw.js')) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+        }
+    }
+}));
 
 // API Routes
 app.use('/', webRoutes);
