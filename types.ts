@@ -20,6 +20,8 @@ export interface Track {
   style: DanceStyle;
   bpm: number;
   url: string;
+  ownerId: string;
+  isPublic: boolean;
   isPreloaded?: boolean;
 }
 
@@ -35,6 +37,7 @@ export interface TrainingSettings {
   pauseDuration: number;
   metronomeEnabled: boolean;
   metronomeVolume: number;
+  clapDetectionEnabled?: boolean;
 }
 
 export interface User {
@@ -45,6 +48,7 @@ export interface User {
   role: 'admin' | 'coach' | 'student';
   coachId?: string | null;
   favorites: string[];
+  trackLimit?: number;
 }
 
 export interface PlayerState {

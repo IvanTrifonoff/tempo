@@ -94,7 +94,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                     {user?.role === 'admin' && (
                         <div className="pt-2">
                             <Link to="/admin" onClick={onClose} className="w-full py-4 bg-yellow-500/10 text-yellow-500 font-bold uppercase rounded-xl hover:bg-yellow-500/20 transition-all border border-yellow-500/20 flex items-center justify-center gap-3">
-                                <ShieldCheckIcon size={20} /> {t('admin.title') || 'Admin Panel'}
+                                <ShieldCheckIcon /> {t('admin.title') || 'Admin Panel'}
                             </Link>
                         </div>
                     )}
