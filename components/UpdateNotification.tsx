@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { APP_VERSION } from '../constants';
+import { StarIcon } from './Icons';
 
-const UpdateNotification: React.FC = () => {
+interface UpdateNotificationProps {
+  hasReviewed: boolean | null;
+  setShowReview: (show: boolean) => void;
+}
+
+const UpdateNotification: React.FC<UpdateNotificationProps> = ({ hasReviewed, setShowReview }) => {
   const { t, i18n } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [changelogText, setChangelogText] = useState<string>('');
@@ -72,16 +78,31 @@ const UpdateNotification: React.FC = () => {
         </div>
 
         <div className="space-y-3 text-gray-300 text-sm mb-6 font-light leading-relaxed w-full">
-          <p className="whitespace-pre-line">
+          <p className="whitespace-pre-line text-left">
             {changelogText}
           </p>
           <div className="mt-4 pt-4 border-t border-white/5">
-            <p className="text-[10px] uppercase font-bold text-gray-500 mb-1">{t('app.support') || 'Support'}:</p>
-            <a href="mailto:support@trfnv.ru" className="text-yellow-500 hover:text-yellow-400 font-medium transition text-xs">
-              support@trfnv.ru
-            </a>
+            <p className="text-[10px] uppercase font-bold text-gray-500 mb-1 text-center">{t('app.support') || 'Support'}:</p>
+            <div className="text-center">
+                <a href="mailto:support@trfnv.ru" className="text-yellow-500 hover:text-yellow-400 font-medium transition text-xs">
+                support@trfnv.ru
+                </a>
+            </div>
           </div>
         </div>
+
+        {hasReviewed === false && (
+          <button 
+            onClick={() => {
+              handleClose();
+              setShowReview(true);
+            }}
+            className="w-full py-4 mb-3 bg-white/5 border border-white/10 text-yellow-500 font-bold uppercase text-xs tracking-wider rounded-xl hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+          >
+            <StarIcon />
+            {t('update.review') || 'Leave a Review'}
+          </button>
+        )}
 
         <button 
           onClick={handleClose}
