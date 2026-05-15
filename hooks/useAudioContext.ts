@@ -1,34 +1,44 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useState } from 'react';
 
 export const useAudioContext = () => {
   const audioCtxRef = useRef<AudioContext | null>(null);
-  const musicSourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
+  const [isReady, setIsReady] = useState(false);
 
-  const initAudioCtx = useCallback(async (audioElement: HTMLAudioElement | null) => {
+  const getAudioContext = useCallback(() => {
     if (!audioCtxRef.current) {
-      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
+      const AudioContextClass = (window.AudioContext || (window as any).webkitAudioContext);
+      audioCtxRef.current = new AudioContextClass({
         sampleRate: 44100,
         latencyHint: 'playback'
       });
     }
-    
-    if (audioCtxRef.current.state === 'suspended') {
-      await audioCtxRef.current.resume();
-    }
-
-    if (audioElement && !musicSourceNodeRef.current && audioCtxRef.current) {
-        try {
-            const source = audioCtxRef.current.createMediaElementSource(audioElement);
-            source.connect(audioCtxRef.current.destination);
-            musicSourceNodeRef.current = source;
-            console.log("Music routed through unified AudioContext");
-        } catch (e) {
-            console.warn("Music routing issue:", e);
-        }
-    }
-    
     return audioCtxRef.current;
   }, []);
 
-  return { audioCtxRef, initAudioCtx };
+  const resumeAudioContext = useCallback(async () => {
+    const ctx = getAudioContext();
+    if (ctx.state === 'suspended') {
+      try {
+        await ctx.resume();
+        setIsReady(true);
+      } catch (e) {
+        console.error("Failed to resume AudioContext:", e);
+      }
+    } else {
+      setIsReady(true);
+    }
+  }, [getAudioContext]);
+
+  // No-op to keep interface compatible but disable the piping
+  const connectAudioElement = useCallback((audioElement: HTMLAudioElement) => {
+    return;
+  }, []);
+
+  return {
+    audioCtxRef,
+    getAudioContext,
+    resumeAudioContext,
+    connectAudioElement,
+    isReady
+  };
 };
