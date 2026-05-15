@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { renderHook } from '@testing-library/react';
+import { renderHook, act } from '@testing-library/react';
 import { useAudioContext } from './useAudioContext';
 
 describe('useAudioContext', () => {
@@ -18,10 +18,13 @@ describe('useAudioContext', () => {
     }) as any;
 
     const { result } = renderHook(() => useAudioContext());
-    const ctx = await result.current.initAudioCtx(null);
+    
+    await act(async () => {
+      await result.current.resumeAudioContext();
+    });
 
     expect(global.AudioContext).toHaveBeenCalled();
     expect(resumeSpy).toHaveBeenCalled();
-    expect(ctx).toBe(mockCtx);
+    expect(result.current.getAudioContext()).toBe(mockCtx);
   });
 });

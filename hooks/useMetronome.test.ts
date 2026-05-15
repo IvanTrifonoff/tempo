@@ -30,30 +30,22 @@ describe('useMetronome', () => {
 
   it('should start metronome when enabled and playing', async () => {
     const mockAudioCtx = createMockAudioCtx();
-    const initAudioCtx = vi.fn().mockResolvedValue(mockAudioCtx);
     const props = {
       audioCtxRef: { current: mockAudioCtx as any },
-      initAudioCtx,
       training: { metronomeEnabled: true, metronomeVolume: 0.5 },
       player: { isPlaying: true, currentTrack: { bpm: 120 }, playbackRate: 1.0 }
     };
 
     renderHook(() => useMetronome(props as any));
     
-    // Ждем разрешения промисов внутри useEffect
-    await vi.waitFor(() => {
-        expect(initAudioCtx).toHaveBeenCalled();
-    });
-
+    vi.advanceTimersByTime(1000);
     expect(mockAudioCtx.createOscillator).toHaveBeenCalled();
   });
 
   it('should not start metronome when disabled', async () => {
     const mockAudioCtx = createMockAudioCtx();
-    const initAudioCtx = vi.fn().mockResolvedValue(mockAudioCtx);
     const props = {
       audioCtxRef: { current: mockAudioCtx as any },
-      initAudioCtx,
       training: { metronomeEnabled: false, metronomeVolume: 0.5 },
       player: { isPlaying: true, currentTrack: { bpm: 120 }, playbackRate: 1.0 }
     };

@@ -15,7 +15,7 @@ import PlayerControls from './components/player/PlayerControls';
 import TrainingModal from './components/player/TrainingModal';
 import SettingsModal from './components/player/SettingsModal';
 import ReviewModal from './components/ReviewModal';
-import { PlusIcon, TrashIcon, CloudOffIcon } from './Icons'; // Assuming these might be needed if they were used directly, but they seem to be in subcomponents now
+import { PlusIcon, TrashIcon, CloudOffIcon } from './components/Icons'; // Assuming these might be needed if they were used directly, but they seem to be in subcomponents now
 
 const PlayerUI: React.FC = () => {
   const { t } = useTranslation();
