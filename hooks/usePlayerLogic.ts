@@ -206,21 +206,27 @@ export const usePlayerLogic = () => {
 
     const togglePlay = useCallback(async () => {
         await resumeAudioContext();
-        setPlayer(p => {
-            const newIsPlaying = !p.isPlaying;
-            if (newIsPlaying && p.currentTrack) {
-                logPlay(p.currentTrack.id);
-            }
-            return { ...p, isPlaying: newIsPlaying, isPauseCountdown: false };
-        });
-    }, [resumeAudioContext, logPlay]);
+        
+        const willStartPlaying = !player.isPlaying;
+        if (willStartPlaying && player.currentTrack) {
+            logPlay(player.currentTrack.id);
+        }
+        
+        setPlayer(p => ({ ...p, isPlaying: !p.isPlaying, isPauseCountdown: false }));
+    }, [resumeAudioContext, logPlay, player.isPlaying, player.currentTrack]);
 
     const selectTrack = useCallback(async (track: Track) => {
         await resumeAudioContext();
 
-        let finalUrl = track?.url;
-        if (await offlineStorage.isTrackDownloaded(track?.url)) {
-            finalUrl = await offlineStorage.getTrackUrl(track?.url);
+        if (!track?.url) return;
+
+        let finalUrl = track.url;
+        try {
+            if (await offlineStorage.isTrackDownloaded(track.url)) {
+                finalUrl = await offlineStorage.getTrackUrl(track.url);
+            }
+        } catch (e) {
+            console.warn("Offline URL resolution failed", e);
         }
 
         setPlayer(prev => ({
@@ -233,7 +239,7 @@ export const usePlayerLogic = () => {
             isPauseCountdown: false
         }));
         setIsPlayerVisible(true);
-        logPlay(track?.id);
+        logPlay(track.id);
     }, [resumeAudioContext, logPlay]);
 
     const skip = useCallback((direction: 'next' | 'prev') => {
