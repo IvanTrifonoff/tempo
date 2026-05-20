@@ -2,11 +2,11 @@
 export default {
   content: [
     "./index.html",
-    "./App.tsx",
-    "./PlayerUI.tsx",
-    "./constants.tsx",
-    "./components/**/*.{js,ts,jsx,tsx}",
-    "./hooks/**/*.{js,ts,jsx,tsx}",
+    "./src/App.tsx",
+    "./src/PlayerUI.tsx",
+    "./src/constants.tsx",
+    "./src/components/**/*.{js,ts,jsx,tsx}",
+    "./src/hooks/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
