@@ -4,6 +4,7 @@ import PlayerUI from './PlayerUI';
 import AdminPage from './components/admin/AdminPage';
 import { useHeartbeat } from './hooks/useHeartbeat';
 
+// Version 1.0.81 - Deployment fix
 const App: React.FC = () => {
   useHeartbeat();
 
