@@ -41,13 +41,10 @@ app.use((req, res, next) => {
 app.use('/uploads', express.static(UPLOADS_PATH));
 app.use(express.static(path.join(__dirname, '../dist'), { 
     maxAge: '1y', 
-    etag: false,
-    index: false, // CRITICAL: Stop serving index.html with 1-year cache
+    etag: true,
     setHeaders: (res, path) => {
         if (path.endsWith('.html') || path.endsWith('sw.js')) {
             res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-            res.setHeader('Pragma', 'no-cache');
-            res.setHeader('Expires', '0');
         }
     }
 }));
@@ -63,6 +60,9 @@ app.use('/api/changelog', changelogRoutes);
 app.use('/api/reviews', reviewRoutes);
 
 app.get('*', (req, res) => {
+    if (req.url.startsWith('/api/')) {
+        console.warn(`[${new Date().toISOString()}] Warning: API request matched catch-all: ${req.url}`);
+    }
     res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
