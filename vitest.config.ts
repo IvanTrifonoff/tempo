@@ -6,6 +6,6 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    exclude: ['**/node_modules/**', '**/server/**'],
+    exclude: ['**/node_modules/**', '**/server/**', '**/dist/**'],
   },
 });
