@@ -9,7 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // constants.tsx is in /app/
 const rootDir = path.join(__dirname, '../../'); 
 const changelogPath = path.join(rootDir, 'CHANGELOG.md');
-const constantsPath = path.join(rootDir, 'src/constants.tsx');
+const constantsPath = fs.existsSync(path.join(rootDir, 'src/constants.tsx')) ? path.join(rootDir, 'src/constants.tsx') : path.join(rootDir, 'constants.tsx');
 
 async function sync() {
     try {
