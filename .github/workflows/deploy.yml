@@ -35,6 +35,7 @@ jobs:
           POSTGRES_USER: tempo
           POSTGRES_PASSWORD: tempo_password
           POSTGRES_DB: tempo_test
+          POSTGRES_HOST_AUTH_METHOD: trust
         ports:
           - 5432:5432
         options: >-
