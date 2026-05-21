@@ -1,7 +1,7 @@
 import fs from 'fs';
 
 // 1. Получаем версию из constants.tsx
-const constantsContent = fs.readFileSync('constants.tsx', 'utf8');
+const constantsContent = fs.readFileSync('src/constants.tsx', 'utf8');
 const versionMatch = constantsContent.match(/APP_VERSION = '(.+?)'/);
 const appVersion = versionMatch ? versionMatch[1] : null;
 

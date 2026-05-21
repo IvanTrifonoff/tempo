@@ -128,7 +128,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
-          source: "docker-compose.yml,constants.tsx,CHANGELOG.md"
+          source: "docker-compose.yml,src/constants.tsx,CHANGELOG.md"
           target: "${{ env.TARGET_DIR }}/"
 
       - name: Deploy & Sync Changelog

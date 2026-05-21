@@ -9,7 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // constants.tsx is in /app/
 const rootDir = path.join(__dirname, '../../'); 
 const changelogPath = path.join(rootDir, 'CHANGELOG.md');
-const constantsPath = path.join(rootDir, 'constants.tsx');
+const constantsPath = path.join(rootDir, 'src/constants.tsx');
 
 async function sync() {
     try {
