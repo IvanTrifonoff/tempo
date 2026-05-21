@@ -6,7 +6,11 @@ CREATE TABLE IF NOT EXISTS users (
     coach_id TEXT,
     is_verified BOOLEAN DEFAULT FALSE,
     verification_token TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    track_limit INTEGER DEFAULT 10 NOT NULL,
+    subscription_tier TEXT DEFAULT 'free' NOT NULL,
+    is_banned BOOLEAN DEFAULT false NOT NULL,
+    last_login TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS tracks (
@@ -19,7 +23,8 @@ CREATE TABLE IF NOT EXISTS tracks (
     owner_id TEXT NOT NULL, 
     is_public BOOLEAN DEFAULT FALSE,
     is_preloaded BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    file_size BIGINT DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS playlists (
@@ -47,4 +52,33 @@ CREATE TABLE IF NOT EXISTS changelogs (
     release_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     description_ru TEXT,
     description_en TEXT
+);
+
+CREATE TABLE IF NOT EXISTS reviews (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT,
+    version TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS activity_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+    action TEXT NOT NULL,
+    target_id TEXT,
+    details JSONB,
+    ip_address TEXT,
+    user_agent TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id SERIAL PRIMARY KEY,
+    admin_id TEXT REFERENCES users(id),
+    action TEXT NOT NULL,
+    target_id TEXT,
+    details JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
