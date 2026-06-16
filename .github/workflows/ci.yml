@@ -18,10 +18,10 @@ jobs:
           node-version: 20
           cache: npm
 
-      - run: npm ci --legacy-peer-deps
+      - run: npm install --legacy-peer-deps
 
       - name: TypeScript check
-        run: npx tsc --noEmit
+        run: npm run typecheck
 
       - name: Run tests
         run: npm test
