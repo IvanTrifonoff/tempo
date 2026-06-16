@@ -6,6 +6,7 @@ import { AuthProvider } from '../AuthContext';
 import { TrackProvider, useTrackContext } from '../TrackContext';
 import { tracksApi } from '../../services/api/tracksApi';
 import { playlistsApi } from '../../services/api/playlistsApi';
+import { setupLocalStorage } from '../../test/helpers';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -42,22 +43,6 @@ const mockUser = { id: 'u1', email: 'admin@test.com', isAdmin: true, isSubscribe
 const mockToken = 'test-token';
 const mockTrack: Track = { id: 'track1', title: 'Test Track', artist: 'Artist', style: DanceStyle.SAMBA, bpm: 100, url: '/uploads/test.mp3', ownerId: 'u1', isPublic: true };
 const mockTrack2: Track = { id: 'track2', title: 'Track 2', artist: 'Artist2', style: DanceStyle.WALTZ, bpm: 60, url: '/uploads/test2.mp3', ownerId: 'u1', isPublic: true };
-
-// Persistent localStorage mock
-function setupLocalStorage(token?: string) {
-  const store: Record<string, string> = {};
-  if (token) store.token = token;
-  const mock = {
-    getItem: (key: string) => store[key] ?? null,
-    setItem: (key: string, value: string) => { store[key] = value; },
-    removeItem: (key: string) => { delete store[key]; },
-    clear: () => { Object.keys(store).forEach(k => delete store[k]); },
-    get length() { return Object.keys(store).length; },
-    key: (index: number) => Object.keys(store)[index] ?? null,
-  };
-  (globalThis as any).localStorage = mock;
-  return mock;
-}
 
 function wrapper({ children }: { children: React.ReactNode }) {
   return React.createElement(AuthProvider, null,

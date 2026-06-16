@@ -1,14 +1,16 @@
+import type { Track } from '../../types';
+
 export const tracksApi = {
-  async fetchTracks(token: string | null): Promise<any[]> {
+  async fetchTracks(token: string | null): Promise<Track[]> {
     const headers: Record<string, string> = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
     const res = await fetch(`/api/tracks?t=${Date.now()}`, { headers });
     const data = await res.json();
     if (!Array.isArray(data)) throw new Error('Invalid tracks data');
-    return data;
+    return data as Track[];
   },
 
-  async addTrack(token: string, formData: FormData): Promise<any> {
+  async addTrack(token: string, formData: FormData): Promise<Track> {
     const res = await fetch('/api/tracks', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${token}` },

@@ -7,6 +7,7 @@ import { TrackProvider, useTrackContext } from '../TrackContext';
 import { PlayerProvider, usePlayerContext } from '../PlayerContext';
 import { tracksApi } from '../../services/api/tracksApi';
 import { playlistsApi } from '../../services/api/playlistsApi';
+import { setupLocalStorage } from '../../test/helpers';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -61,19 +62,6 @@ vi.mock('../../hooks/useMetronome', () => ({
 
 const mockTrack: Track = { id: 'track1', title: 'Test', artist: 'A', style: DanceStyle.SAMBA, bpm: 100, url: '/test.mp3', ownerId: 'u1', isPublic: true };
 const mockTrack2: Track = { id: 'track2', title: 'Track 2', artist: 'B', style: DanceStyle.WALTZ, bpm: 60, url: '/test2.mp3', ownerId: 'u1', isPublic: true };
-
-function setupLocalStorage() {
-  const store: Record<string, string> = {};
-  const mock = {
-    getItem: (key: string) => store[key] ?? null,
-    setItem: (key: string, value: string) => { store[key] = value; },
-    removeItem: (key: string) => { delete store[key]; },
-    clear: () => { Object.keys(store).forEach(k => delete store[k]); },
-    get length() { return Object.keys(store).length; },
-    key: (index: number) => Object.keys(store)[index] ?? null,
-  };
-  (globalThis as any).localStorage = mock;
-}
 
 function wrapper({ children }: { children: React.ReactNode }) {
   return React.createElement(AuthProvider, null,

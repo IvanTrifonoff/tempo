@@ -1,5 +1,7 @@
+import type { Playlist } from '../../types';
+
 export const playlistsApi = {
-  async fetchPlaylists(token: string): Promise<any[]> {
+  async fetchPlaylists(token: string): Promise<Playlist[]> {
     const res = await fetch('/api/playlists', {
       headers: { 'Authorization': `Bearer ${token}` },
     });
