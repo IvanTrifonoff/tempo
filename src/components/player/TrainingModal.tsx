@@ -1,16 +1,15 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { TrainingSettings } from '../../types';
+import { usePlayerContext } from '../../context/PlayerContext';
 
 interface TrainingModalProps {
     show: boolean;
     onClose: () => void;
-    training: TrainingSettings;
-    setTraining: React.Dispatch<React.SetStateAction<TrainingSettings>>;
 }
 
-const TrainingModal: React.FC<TrainingModalProps> = ({ show, onClose, training, setTraining }) => {
+const TrainingModal: React.FC<TrainingModalProps> = ({ show, onClose }) => {
     const { t } = useTranslation();
+    const { training, setTraining } = usePlayerContext();
 
     if (!show) return null;
 
@@ -31,7 +30,7 @@ const TrainingModal: React.FC<TrainingModalProps> = ({ show, onClose, training, 
                                 <h4 className="text-white font-bold text-lg">{t('coach.autopilot')}</h4>
                                 <p className="text-xs text-gray-500">{t('coach.autopilotDesc')}</p>
                             </div>
-                            <button onClick={() => setTraining(t => ({ ...t, isActive: !t.isActive }))} className={`w-16 h-9 rounded-full transition-all p-1 flex items-center flex-shrink-0 ${training.isActive ? 'bg-yellow-500' : 'bg-white/10'}`}>
+                            <button data-testid="training-toggle" onClick={() => setTraining(t => ({ ...t, isActive: !t.isActive }))} className={`w-16 h-9 rounded-full transition-all p-1 flex items-center flex-shrink-0 ${training.isActive ? 'bg-yellow-500' : 'bg-white/10'}`}>
                                 <div className={`w-7 h-7 rounded-full bg-black transition-all transform ${training.isActive ? 'translate-x-7' : 'translate-x-0'}`} />
                             </button>
                         </div>

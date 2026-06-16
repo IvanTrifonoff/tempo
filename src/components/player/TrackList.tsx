@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { Track, User, Playlist, DanceStyle, PlayerState, TrainingSettings } from '../../types';
+import { DanceStyle } from '../../types';
+import { useAuth } from '../../context/AuthContext';
+import { useTrackContext } from '../../context/TrackContext';
+import { usePlayerContext } from '../../context/PlayerContext';
 import {
     PlayIcon, PauseIcon, PlusIcon, HeartIcon,
     PlaylistIcon, TrashIcon, PencilIcon, DownloadIcon, Spinner
@@ -8,51 +11,28 @@ import {
 import { STYLE_COLORS } from '../../constants';
 
 interface TrackListProps {
-    tracks: Track[];
-    filteredTracks: Track[];
-    activeStyle: DanceStyle | 'All' | 'Favorites' | string;
-    setActiveStyle: (style: DanceStyle | 'All' | 'Favorites' | string) => void;
-    playlists: Playlist[];
-    setPlaylists: React.Dispatch<React.SetStateAction<Playlist[]>>;
-    user: User | null;
-    player: PlayerState;
-    training: TrainingSettings;
-    isMetronomeVisualActive: boolean;
-    togglePlay: () => void;
-    selectTrack: (track: Track) => void;
     setShowAuth: (show: boolean) => void;
     setShowPlaylistCreator: (show: boolean) => void;
     setPlaylistModalTrackId: (id: string | null) => void;
-    toggleFavorite: (id: string) => void;
-    setTrackToEdit: (track: Track | null) => void;
-    toggleDownload: (track: Track) => Promise<void>;
-    downloadedTracks: Set<string>;
-    downloadingTracks: Set<string>;
-    token: string | null;
+    setTrackToEdit: (track: any) => void;
 }
 
 const TrackList: React.FC<TrackListProps> = ({
-    filteredTracks,
-    activeStyle,
-    setActiveStyle,
-    playlists,
-    setPlaylists,
-    user,
-    player,
-    training,
-    isMetronomeVisualActive,
-    togglePlay,
-    selectTrack,
     setShowAuth,
     setShowPlaylistCreator,
     setPlaylistModalTrackId,
-    toggleFavorite,
-    setTrackToEdit,
-    toggleDownload,
-    downloadedTracks,
-    downloadingTracks,
-    token
+    setTrackToEdit
 }) => {
+    const { user, token } = useAuth();
+    const {
+        filteredTracks,
+        activeStyle, setActiveStyle,
+        playlists, setPlaylists,
+        downloadedTracks, downloadingTracks,
+        toggleDownload,
+        toggleFavorite,
+    } = useTrackContext();
+    const { player, training, isMetronomeVisualActive, togglePlay, selectTrack } = usePlayerContext();
     const { t } = useTranslation();
 
     return (

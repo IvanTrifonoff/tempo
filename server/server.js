@@ -4,6 +4,8 @@ import { fileURLToPath } from 'url';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import compression from 'compression';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import { transporter } from './email.js';
 import db from './db/index.js';
 import logger from './config/logger.js';
@@ -29,8 +31,33 @@ const PORT = process.env.PORT || 3000;
 const UPLOADS_PATH = path.join(__dirname, 'uploads');
 
 app.use(compression());
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    contentSecurityPolicy: false,
+}));
 app.use(cors());
 app.use(express.json());
+
+// Rate limiters
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' },
+});
+
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many authentication attempts, please try again later.' },
+});
+
+// Apply rate limiters to API routes
+app.use('/api/', apiLimiter);
+app.use('/api/auth/', authLimiter);
 
 // Request Logger (From Dev)
 app.use((req, res, next) => {

@@ -1,27 +1,24 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { User } from '../../types';
+import { useAuth } from '../../context/AuthContext';
 import { ShieldCheckIcon } from '../Icons';
 import { APP_VERSION } from '../../constants';
 
 interface SettingsModalProps {
     show: boolean;
     onClose: () => void;
-    user: User | null;
     notificationPermission: NotificationPermission;
     handleRequestNotification: () => void;
-    copyInviteLink: () => void;
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({
     show,
     onClose,
-    user,
     notificationPermission,
-    handleRequestNotification,
-    copyInviteLink
+    handleRequestNotification
 }) => {
+    const { user, copyInviteLink } = useAuth();
     const { t, i18n } = useTranslation();
 
     if (!show) return null;

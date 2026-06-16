@@ -18,7 +18,8 @@ describe('useAudioContext', () => {
     }) as any;
 
     const { result } = renderHook(() => useAudioContext());
-    
+    await act(async () => {});
+
     await act(async () => {
       await result.current.resumeAudioContext();
     });

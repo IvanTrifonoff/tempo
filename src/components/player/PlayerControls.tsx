@@ -1,40 +1,22 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { PlayerState, TrainingSettings, Track } from '../../types';
+import { usePlayerContext } from '../../context/PlayerContext';
 import {
     PlayIcon, PauseIcon, SkipForward, SkipBack,
     RepeatIcon, ShuffleIcon, MetronomeIcon
 } from '../Icons';
 import { STYLE_COLORS } from '../../constants';
 
-interface PlayerControlsProps {
-    player: PlayerState;
-    setPlayer: React.Dispatch<React.SetStateAction<PlayerState>>;
-    togglePlay: () => void;
-    skip: (direction: 'next' | 'prev') => void;
-    audioRef: React.RefObject<HTMLAudioElement>;
-    training: TrainingSettings;
-    setTraining: React.Dispatch<React.SetStateAction<TrainingSettings>>;
-    adjustBpmInPlayer: (delta: number) => void;
-    currentEffectiveBpm: number;
-    isPlayerVisible: boolean;
-    setIsPlayerVisible: (visible: boolean) => void;
-}
-
-const PlayerControls: React.FC<PlayerControlsProps> = ({
-    player,
-    setPlayer,
-    togglePlay,
-    skip,
-    audioRef,
-    training,
-    setTraining,
-    adjustBpmInPlayer,
-    currentEffectiveBpm,
-    isPlayerVisible,
-    setIsPlayerVisible
-}) => {
+const PlayerControls: React.FC = () => {
     const { t } = useTranslation();
+    const {
+        player, setPlayer,
+        togglePlay, skip,
+        audioRef,
+        training, setTraining,
+        adjustBpmInPlayer, currentEffectiveBpm,
+        isPlayerVisible, setIsPlayerVisible
+    } = usePlayerContext();
 
     if (!player.currentTrack) return null;
 
@@ -75,7 +57,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
                             </div>
                         </div>
 
-                        {/* 2. Controls (Mobile: 2nd, Desktop: 3rd col) */}
+                        {/* 2. Controls */}
                         <div className="flex flex-col items-center gap-3 w-full lg:col-start-3 lg:px-6">
                             <div className="flex items-center justify-center gap-6 w-full">
                                 <button onClick={() => setPlayer(p => ({ ...p, isShuffle: !p.isShuffle }))} className="text-gray-500 hover:text-white transition-all"><ShuffleIcon active={player.isShuffle} /></button>
@@ -96,10 +78,8 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
                             </div>
                         </div>
 
-                        {/* 3. Bottom Row: BPM + Speed (Mobile: 3rd, Desktop: Split) */}
+                        {/* 3. Bottom Row: BPM + Speed */}
                         <div className="flex items-stretch gap-3 w-full lg:contents">
-
-                            {/* BPM Block (Desktop: 2nd col) */}
                             <div className="flex-1 lg:flex-none flex flex-col items-center justify-center bg-white/5 rounded-xl p-2 border border-white/10 shadow-inner lg:col-start-2 lg:ml-8 lg:mr-4">
                                 <div className="flex items-center justify-between w-full mb-1 px-1">
                                     <span className="text-[10px] text-gray-500 font-black uppercase tracking-widest">{t('player.bpm')}</span>
@@ -117,7 +97,6 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
                                 </div>
                             </div>
 
-                            {/* Speed Control (Desktop: 4th col) */}
                             <div className="flex-1 lg:flex-none flex flex-col justify-center gap-2 bg-white/5 rounded-xl p-3 lg:p-0 lg:bg-transparent lg:col-start-4 lg:w-48 lg:border-none lg:shadow-none border border-white/10 shadow-inner">
                                 <div className="flex justify-between text-[10px] text-gray-400 font-black uppercase tracking-tighter">
                                     <span>{t('player.speed')}</span>
@@ -137,7 +116,6 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
                                     <button onClick={() => setPlayer(p => ({ ...p, playbackRate: 1.0 }))} className={`flex-1 py-1 rounded-md text-[10px] font-bold uppercase transition ${player.playbackRate === 1.0 ? 'bg-yellow-500 text-black' : 'bg-white/10 text-gray-400 hover:bg-white/20 hover:text-white'}`}>Normal</button>
                                 </div>
                             </div>
-
                         </div>
                     </div>
                 </div>

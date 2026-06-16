@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { User } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 interface AuthModalProps {
-  onLogin: (user: User, token: string) => void;
   onClose: () => void;
 }
 
-const AuthModal: React.FC<AuthModalProps> = ({ onLogin, onClose }) => {
+const AuthModal: React.FC<AuthModalProps> = ({ onClose }) => {
+  const { handleLogin } = useAuth();
   const { t } = useTranslation();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -41,7 +41,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ onLogin, onClose }) => {
       if (!isLogin && !inviteCode && !email.includes('admin@trfnv.ru')) {
           setVerifySent(true);
       } else {
-          onLogin(data.user, data.token);
+          handleLogin(data.user, data.token);
+          onClose();
       }
     } catch (error: any) {
       alert(error.message);

@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Track, DanceStyle, User } from '../types';
+import { Track, DanceStyle } from '../types';
+import { useAuth } from '../context/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { TrashIcon } from './Icons';
 
 interface EditTrackModalProps {
   track: Track;
-  user: User | null;
   onClose: () => void;
   onSave: (id: string, data: Partial<Track>) => Promise<void>;
   onDelete?: () => void;
 }
 
-const EditTrackModal: React.FC<EditTrackModalProps> = ({ track, user, onClose, onSave, onDelete }) => {
+const EditTrackModal: React.FC<EditTrackModalProps> = ({ track, onClose, onSave, onDelete }) => {
+  const { user } = useAuth();
   const { t } = useTranslation();
   const [formData, setFormData] = useState({
     title: track.title,

@@ -1,15 +1,13 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { User, TrainingSettings } from '../../types';
+import { useAuth } from '../../context/AuthContext';
+import { usePlayerContext } from '../../context/PlayerContext';
 import {
     MetronomeIcon, WhistleIcon, SettingsIcon,
     ShieldCheckIcon, PlusIcon, UserIcon, StarIcon, CloudOffIcon
 } from '../Icons';
 
 interface HeaderProps {
-    user: User | null;
-    training: TrainingSettings;
-    setTraining: React.Dispatch<React.SetStateAction<TrainingSettings>>;
     setShowTrainingPanel: (show: boolean) => void;
     setShowSettings: (show: boolean) => void;
     setShowUserManagement: (show: boolean) => void;
@@ -17,22 +15,19 @@ interface HeaderProps {
     setShowAuth: (show: boolean) => void;
     setShowReview: (show: boolean) => void;
     isOnline: boolean;
-    handleLogout: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({
-    user,
-    training,
-    setTraining,
     setShowTrainingPanel,
     setShowSettings,
     setShowUserManagement,
     setShowAdmin,
     setShowAuth,
     setShowReview,
-    isOnline,
-    handleLogout
+    isOnline
 }) => {
+    const { user, handleLogout } = useAuth();
+    const { training, setTraining } = usePlayerContext();
     const { t } = useTranslation();
 
     return (

@@ -37,7 +37,8 @@ describe('useMetronome', () => {
     };
 
     renderHook(() => useMetronome(props as any));
-    
+    await act(async () => {});
+
     vi.advanceTimersByTime(1000);
     expect(mockAudioCtx.createOscillator).toHaveBeenCalled();
   });
@@ -51,7 +52,8 @@ describe('useMetronome', () => {
     };
 
     renderHook(() => useMetronome(props as any));
-    
+    await act(async () => {});
+
     vi.advanceTimersByTime(1000);
     expect(mockAudioCtx.createOscillator).not.toHaveBeenCalled();
   });
